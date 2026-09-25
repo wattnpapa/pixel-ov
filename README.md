@@ -57,7 +57,7 @@ Der Abruf braucht Netzzugang zu `nominatim.openstreetmap.org` (Adresse) und `ove
 
 Raster und Auflösung:
 
-- Szenen: 640 x 360 px, Integer-Skalierung aufs Fenster (auf Handys passend verkleinert)
+- Szenen: 640 x 360 px, Integer-Skalierung aufs Fenster (auf Handys passend verkleinert); Fahrmodus mit Kamera-Zoom 0,5 auf 64-px-Tiles (20 x 11 Tiles im Bild)
 - Tiles: 64 x 64 px, Tileset `assets/tiles/city-tileset.png` (Reihenfolge in `tools/tiles.mjs`); Draufsicht-Fahrzeuge 80 x 40 (MTW), 112 x 48 (GKW), 72 x 36 (Zivil)
 - Palette: `src/config/palette.json`, 36 Farben
 - Schrift: 5 x 7 Glyphen, gerendert als 10 x 14 px in `assets/fonts/pixel-font.png` mit Zeichenliste in `pixel-font.json`

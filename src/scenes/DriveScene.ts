@@ -28,6 +28,7 @@ interface CivilCar {
   factor: number;
 }
 
+const DRIVE_ZOOM = 0.5;
 const SIREN_RANGE = 520;
 const ARRIVE_SPEED = 32;
 /** Anzeige: px/s in km/h (64 px = 4 m, also 16 px/s = 1 m/s) */
@@ -92,19 +93,20 @@ export class DriveScene extends Phaser.Scene {
     this.player.setCircle(r, this.player.width / 2 - r, this.player.height / 2 - r);
     this.heading = spawnZone.heading;
     this.player.setAngle(this.heading);
-    this.sirenLight = this.add.rectangle(0, 0, 9, 9, PALETTE.thwBlueLight).setDepth(11).setVisible(false);
+    this.sirenLight = this.add.rectangle(0, 0, 14, 14, PALETTE.thwBlueLight).setDepth(11).setVisible(false);
 
     this.physics.add.collider(this.player, buildings, () => this.onWallHit());
     this.createCivilTraffic(map, buildings);
 
     this.targetMarker = this.add
       .rectangle(this.target.rect.centerX, this.target.rect.centerY, this.target.rect.width, this.target.rect.height)
-      .setStrokeStyle(4, PALETTE.yellow)
+      .setStrokeStyle(8, PALETTE.yellow)
       .setDepth(5);
     this.tweens.add({ targets: this.targetMarker, alpha: 0.2, yoyo: true, repeat: -1, duration: 500 });
-    this.arrow = this.add.triangle(0, 0, 0, -8, 22, 0, 0, 8, PALETTE.yellow).setDepth(12);
+    this.arrow = this.add.triangle(0, 0, 0, -14, 36, 0, 0, 14, PALETTE.yellow).setDepth(12);
 
-    // 64px-Tiles bei Zoom 1; das HUD liegt in der Overlay-Szene.
+    // 64px-Tiles bei Kamera-Zoom 0.5: 20 x 11 Tiles im Bild, das HUD liegt in der Overlay-Szene bei Zoom 1.
+    this.cameras.main.setZoom(DRIVE_ZOOM);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
     this.cameras.main.setRoundPixels(true);
@@ -236,7 +238,7 @@ export class DriveScene extends Phaser.Scene {
     const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, tx, ty);
     const ang = Phaser.Math.Angle.Between(this.player.x, this.player.y, tx, ty);
     this.arrow.setVisible(dist > 280);
-    this.arrow.setPosition(this.player.x + Math.cos(ang) * 80, this.player.y + Math.sin(ang) * 80);
+    this.arrow.setPosition(this.player.x + Math.cos(ang) * 110, this.player.y + Math.sin(ang) * 110);
     this.arrow.setRotation(ang);
   }
 
