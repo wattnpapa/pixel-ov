@@ -6,7 +6,7 @@ import { TILES } from './tiles.mjs';
 
 const W = 48;
 const H = 36;
-const T = 16;
+const T = 32;
 const id = (name) => TILES.indexOf(name) + 1; // Tiled-GIDs sind 1-basiert, 0 = leer
 
 const ground = new Array(W * H).fill(id('grass'));
@@ -104,16 +104,16 @@ const zones = [
   { id: 4, name: 'sperrung', x: px(17), y: px(21), width: px(3), height: px(2), properties: [{ name: 'kind', type: 'string', value: 'closure' }] },
 ];
 const objects = [
-  { id: 10, name: 'spawn-depot', type: 'spawn', x: px(15) + 8, y: px(10) + 8, width: 0, height: 0, point: true, rotation: 0 },
+  { id: 10, name: 'spawn-depot', type: 'spawn', x: px(15) + 16, y: px(10) + 16, width: 0, height: 0, point: true, rotation: 0 },
   // Zivilfahrzeuge: Polyline als Rundkurs (Punkte relativ zum Objektursprung)
-  route(11, 'route-ring', 'civil-car-a-top', 42, [[4, 4], [43, 4], [43, 28], [4, 28]]),
-  route(12, 'route-inner', 'civil-car-b-top', 38, [[18, 4], [32, 4], [32, 16], [18, 16]]),
-  route(13, 'route-south', 'civil-car-c-top', 46, [[4, 16], [32, 16], [32, 28], [4, 28]]),
+  route(11, 'route-ring', 'civil-car-a-top', 84, [[4, 4], [43, 4], [43, 28], [4, 28]]),
+  route(12, 'route-inner', 'civil-car-b-top', 76, [[18, 4], [32, 4], [32, 16], [18, 16]]),
+  route(13, 'route-south', 'civil-car-c-top', 92, [[4, 16], [32, 16], [32, 28], [4, 28]]),
 ];
 function route(oid, name, sprite, speed, pts) {
   const [ox, oy] = pts[0];
   return {
-    id: oid, name, type: 'route', x: px(ox) + 8, y: px(oy) + 8, width: 0, height: 0, rotation: 0,
+    id: oid, name, type: 'route', x: px(ox) + 16, y: px(oy) + 16, width: 0, height: 0, rotation: 0,
     polygon: pts.map(([x, y]) => ({ x: px(x - ox), y: px(y - oy) })),
     properties: [{ name: 'sprite', type: 'string', value: sprite }, { name: 'speed', type: 'int', value: speed }],
   };
@@ -125,7 +125,7 @@ const map = {
   type: 'map', version: '1.10', tiledversion: '1.10.2', orientation: 'orthogonal', renderorder: 'right-down',
   width: W, height: H, tilewidth: T, tileheight: T, infinite: false, nextlayerid: 6, nextobjectid: 20,
   tilesets: [{
-    firstgid: 1, name: 'city-tileset', image: '../tiles/city-tileset.png', imagewidth: 128, imageheight: 48,
+    firstgid: 1, name: 'city-tileset', image: '../tiles/city-tileset.png', imagewidth: 256, imageheight: 96,
     tilewidth: T, tileheight: T, tilecount: TILES.length, columns: 8, margin: 0, spacing: 0,
     tiles: TILES.map((name, i) => ({ id: i, type: name, properties: collidingTiles.includes(name) ? [{ name: 'collides', type: 'bool', value: true }] : [] })),
   }],

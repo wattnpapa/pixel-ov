@@ -28,8 +28,10 @@ interface CivilCar {
   factor: number;
 }
 
-const SIREN_RANGE = 130;
-const ARRIVE_SPEED = 8;
+const SIREN_RANGE = 260;
+const ARRIVE_SPEED = 16;
+/** Anzeige: px/s in km/h (32 px = 4 m, also 8 px/s = 1 m/s) */
+const KMH_PER_PXS = 3.6 / 8;
 
 /**
  * Top-down-Fahrmodus auf der Stadtkarte. Arcade-Physik: das Fahrzeug dreht sich
@@ -90,20 +92,19 @@ export class DriveScene extends Phaser.Scene {
     this.player.setCircle(r, this.player.width / 2 - r, this.player.height / 2 - r);
     this.heading = spawnZone.heading;
     this.player.setAngle(this.heading);
-    this.sirenLight = this.add.rectangle(0, 0, 3, 3, PALETTE.thwBlueLight).setDepth(11).setVisible(false);
+    this.sirenLight = this.add.rectangle(0, 0, 5, 5, PALETTE.thwBlueLight).setDepth(11).setVisible(false);
 
     this.physics.add.collider(this.player, buildings, () => this.onWallHit());
     this.createCivilTraffic(map, buildings);
 
     this.targetMarker = this.add
       .rectangle(this.target.rect.centerX, this.target.rect.centerY, this.target.rect.width, this.target.rect.height)
-      .setStrokeStyle(2, PALETTE.yellow)
+      .setStrokeStyle(3, PALETTE.yellow)
       .setDepth(5);
     this.tweens.add({ targets: this.targetMarker, alpha: 0.2, yoyo: true, repeat: -1, duration: 500 });
-    this.arrow = this.add.triangle(0, 0, 0, -3, 8, 0, 0, 3, PALETTE.yellow).setDepth(12);
+    this.arrow = this.add.triangle(0, 0, 0, -6, 16, 0, 0, 6, PALETTE.yellow).setDepth(12);
 
-    // Welt 2x gezoomt: 16px-Tiles erscheinen wie 32px, das HUD liegt in der Overlay-Szene bei Zoom 1.
-    this.cameras.main.setZoom(2);
+    // 32px-Tiles bei Zoom 1; das HUD liegt in der Overlay-Szene.
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
     this.cameras.main.setRoundPixels(true);
@@ -155,7 +156,7 @@ export class DriveScene extends Phaser.Scene {
       const props = Object.fromEntries((o.properties ?? []).map((p: { name: string; value: unknown }) => [p.name, p.value]));
       const points = o.polygon.map((p) => new Phaser.Math.Vector2((o.x ?? 0) + p.x, (o.y ?? 0) + p.y));
       const sprite = group.create(points[0].x, points[0].y, String(props.sprite ?? 'civil-car-a-top')) as Phaser.Physics.Arcade.Image;
-      sprite.setDepth(9).setCircle(5, sprite.width / 2 - 5, sprite.height / 2 - 5);
+      sprite.setDepth(9).setCircle(9, sprite.width / 2 - 9, sprite.height / 2 - 9);
       this.cars.push({ sprite, points, next: 1, speed: Number(props.speed ?? 40), factor: 1 });
     }
     this.physics.add.collider(this.player, group, () => this.onCarHit());
@@ -163,12 +164,12 @@ export class DriveScene extends Phaser.Scene {
   }
 
   private onWallHit(): void {
-    if (Math.abs(this.speed) > 50) this.crash(Math.abs(this.speed) / 40);
+    if (Math.abs(this.speed) > 100) this.crash(Math.abs(this.speed) / 80);
     this.speed *= -0.25;
   }
 
   private onCarHit(): void {
-    if (Math.abs(this.speed) > 25) this.crash(2 + Math.abs(this.speed) / 40);
+    if (Math.abs(this.speed) > 50) this.crash(2 + Math.abs(this.speed) / 80);
     this.speed *= 0.2;
   }
 
@@ -234,8 +235,8 @@ export class DriveScene extends Phaser.Scene {
     const ty = this.target.rect.centerY;
     const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, tx, ty);
     const ang = Phaser.Math.Angle.Between(this.player.x, this.player.y, tx, ty);
-    this.arrow.setVisible(dist > 70);
-    this.arrow.setPosition(this.player.x + Math.cos(ang) * 22, this.player.y + Math.sin(ang) * 22);
+    this.arrow.setVisible(dist > 140);
+    this.arrow.setPosition(this.player.x + Math.cos(ang) * 44, this.player.y + Math.sin(ang) * 44);
     this.arrow.setRotation(ang);
   }
 
@@ -245,7 +246,7 @@ export class DriveScene extends Phaser.Scene {
       const target = car.points[car.next];
       const toTarget = new Phaser.Math.Vector2(target.x - sp.x, target.y - sp.y);
       const dist = toTarget.length();
-      if (dist < 3) {
+      if (dist < 4) {
         car.next = (car.next + 1) % car.points.length;
         continue;
       }
@@ -253,7 +254,7 @@ export class DriveScene extends Phaser.Scene {
       // Ausweichen: bei Sondersignal in Reichweite anhalten; ohne Sondersignal nur, wenn der Spieler direkt vor dem Auto steht.
       const dPlayer = Phaser.Math.Distance.Between(sp.x, sp.y, this.player.x, this.player.y);
       const ahead = dir.dot(new Phaser.Math.Vector2(this.player.x - sp.x, this.player.y - sp.y)) > 0;
-      const shouldStop = (this.sirenOn && dPlayer < SIREN_RANGE) || (ahead && dPlayer < 26);
+      const shouldStop = (this.sirenOn && dPlayer < SIREN_RANGE) || (ahead && dPlayer < 52);
       car.factor = Phaser.Math.Linear(car.factor, shouldStop ? 0 : 1, Math.min(1, dt * 4));
       sp.setRotation(Math.atan2(dir.y, dir.x));
       sp.setVelocity(dir.x * car.speed * car.factor, dir.y * car.speed * car.factor);
@@ -263,7 +264,7 @@ export class DriveScene extends Phaser.Scene {
   private updateHud(): void {
     const s = state();
     const v = s.vehicles[this.vehicleDef.id];
-    const left = `${this.vehicleDef.name}  ${Math.round(Math.abs(this.speed))} km/h${v.fueled ? '' : '  RESERVE'}`;
+    const left = `${this.vehicleDef.name}  ${Math.round(Math.abs(this.speed) * KMH_PER_PXS)} km/h${v.fueled ? '' : '  RESERVE'}`;
     const center = this.sirenOn ? 'SONDERSIGNAL' : '';
     const right = s.progress && !s.progress.completed ? `Zeit ${formatTime(s.progress.elapsedMs)}` : `Zustand ${v.condition}%`;
     this.ui()?.hud.set(left, center, right);
@@ -273,7 +274,7 @@ export class DriveScene extends Phaser.Scene {
     if (this.closureHintShown) return;
     const closure = this.zones.find((z) => z.kind === 'closure');
     if (!closure) return;
-    if (Phaser.Math.Distance.Between(this.player.x, this.player.y, closure.rect.centerX, closure.rect.centerY) < 56) {
+    if (Phaser.Math.Distance.Between(this.player.x, this.player.y, closure.rect.centerX, closure.rect.centerY) < 112) {
       this.closureHintShown = true;
       this.toast('Baustelle. Hier geht es nicht weiter, Umweg über die Umgehungsstraße.', 2500);
     }
