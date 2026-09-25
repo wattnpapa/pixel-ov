@@ -1,0 +1,9 @@
+{
+  "image": "fonts/pixel-5x7.png",
+  "width": 5,
+  "height": 7,
+  "chars": "0123456789 !\"'()+,-./:;<=>?%_[]*ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß",
+  "charsPerRow": 16,
+  "spacingX": 1,
+  "spacingY": 1
+}
