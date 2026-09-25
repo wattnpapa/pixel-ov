@@ -6,7 +6,7 @@ import type { HotspotDef } from '../config/missions/types';
 import { FONT } from '../systems/Dialog';
 import { CAMPAIGN } from '../config/campaign';
 import {
-  acceptAlarm, chooseVehicle, completeServiceTask, formatTime, nextAlarm, openServiceTasks, runFinished, state, vehicleReady,
+  acceptAlarm, chooseVehicle, completeServiceTask, formatTime, nextAlarm, openServiceTasks, runFinished, state, tickMission, vehicleReady,
 } from '../systems/GameState';
 import { continueFromState } from '../systems/flow';
 import { Sound } from '../systems/Sound';
@@ -64,6 +64,15 @@ export class HallScene extends SideSceneBase {
 
     if (s.progress?.reinforcement) this.dialog.toast('Zurück in der Halle. Anderes Fahrzeug nehmen, der Einsatz läuft noch.', 3000);
     else if (s.history.length > 0 && !s.progress) this.dialog.toast('Zurück in der Halle. Nachbereitung an der Werkbank nicht vergessen.', 3000);
+  }
+
+  update(_t: number, deltaMs: number): void {
+    // Bei Nachalarmierung läuft die Einsatzzeit auch in der Halle weiter.
+    const p = state().progress;
+    if (p?.reinforcement && !p.completed) {
+      tickMission(deltaMs);
+      this.hud.set(`Ortsverband - Einsatz ${Math.min(state().alarmIndex + 1, MISSIONS_PER_RUN)}/${MISSIONS_PER_RUN}`, 'EINSATZ LÄUFT', `Zeit ${formatTime(p.elapsedMs)}`);
+    }
   }
 
   protected currentLabelFor(def: HotspotDef): string {
