@@ -1,10 +1,10 @@
 {
   "image": "fonts/pixel-font.png",
-  "width": 10,
-  "height": 14,
+  "width": 20,
+  "height": 28,
   "chars": "0123456789 !\"'()+,-./:;<=>?%_[]*ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß",
   "charsPerRow": 16,
-  "spacingX": 2,
-  "spacingY": 2,
-  "lineSpacing": 4
+  "spacingX": 4,
+  "spacingY": 4,
+  "lineSpacing": 8
 }

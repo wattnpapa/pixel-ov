@@ -28,7 +28,7 @@ interface CivilCar {
   factor: number;
 }
 
-const DRIVE_ZOOM = 0.5;
+const DRIVE_ZOOM = 1;
 const SIREN_RANGE = 520;
 const ARRIVE_SPEED = 32;
 /** Anzeige: px/s in km/h (64 px = 4 m, also 16 px/s = 1 m/s) */
@@ -105,7 +105,7 @@ export class DriveScene extends Phaser.Scene {
     this.tweens.add({ targets: this.targetMarker, alpha: 0.2, yoyo: true, repeat: -1, duration: 500 });
     this.arrow = this.add.triangle(0, 0, 0, -14, 36, 0, 0, 14, PALETTE.yellow).setDepth(12);
 
-    // 64px-Tiles bei Kamera-Zoom 0.5: 20 x 11 Tiles im Bild, das HUD liegt in der Overlay-Szene bei Zoom 1.
+    // 64px-Tiles bei Zoom 1 auf 1280x720: 20 x 11 Tiles im Bild, das HUD liegt in der Overlay-Szene.
     this.cameras.main.setZoom(DRIVE_ZOOM);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);

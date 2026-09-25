@@ -56,7 +56,7 @@ export class DriveInput {
         .setOrigin(0)
         .setScrollFactor(0)
         .setDepth(1000)
-        .setStrokeStyle(2, PALETTE.grayLight)
+        .setStrokeStyle(4, PALETTE.grayLight)
         .setInteractive();
       scene.add.bitmapText(x + w / 2, y + h / 2, 'pixel', label).setOrigin(0.5).setScrollFactor(0).setDepth(1001);
       const btn: TouchButton = { key, zone, held: false };
@@ -69,11 +69,11 @@ export class DriveInput {
       zone.on('pointerout', release);
       this.buttons.push(btn);
     };
-    mk('left', 12, GAME_HEIGHT - 60, 52, 48, '<');
-    mk('right', 72, GAME_HEIGHT - 60, 52, 48, '>');
-    mk('brake', GAME_WIDTH - 124, GAME_HEIGHT - 60, 52, 48, '-');
-    mk('throttle', GAME_WIDTH - 64, GAME_HEIGHT - 60, 52, 48, '+');
-    mk('siren', GAME_WIDTH - 124, GAME_HEIGHT - 116, 112, 44, 'SOSI');
+    mk('left', 24, GAME_HEIGHT - 120, 104, 96, '<');
+    mk('right', 144, GAME_HEIGHT - 120, 104, 96, '>');
+    mk('brake', GAME_WIDTH - 248, GAME_HEIGHT - 120, 104, 96, '-');
+    mk('throttle', GAME_WIDTH - 128, GAME_HEIGHT - 120, 104, 96, '+');
+    mk('siren', GAME_WIDTH - 248, GAME_HEIGHT - 232, 224, 88, 'SOSI');
   }
 
   read(): DriveControls {

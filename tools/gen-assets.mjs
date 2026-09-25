@@ -10,8 +10,8 @@ const P = JSON.parse(fs.readFileSync(new URL('../src/config/palette.json', impor
 
 // ---------------------------------------------------------------- Schrift
 {
-  // 5x7-Glyphen, mit Faktor FS gerendert (10x14 bei FS = 2), passend zur 640x360-Auflösung.
-  const FS = 2;
+  // 5x7-Glyphen, mit Faktor FS gerendert (20x28 bei FS = 4), passend zur 1280x720-Auflösung.
+  const FS = 4;
   const gw = GLYPH_W * FS;
   const gh = GLYPH_H * FS;
   const sp = FS;
@@ -138,6 +138,27 @@ topdownVehicle('assets/sprites/civil-car-a-top.png', 72, 36, P.red, P.redDark, {
 topdownVehicle('assets/sprites/civil-car-b-top.png', 72, 36, P.concreteLight, P.gray, { cab: 32, wheels: [10, 50] });
 topdownVehicle('assets/sprites/civil-car-c-top.png', 72, 36, P.green, P.oliveDark, { cab: 32, wheels: [10, 50] });
 
+
+/**
+ * Zeichenfläche mit Faktor K: alle Koordinaten der Seitenansicht-Grafiken sind im
+ * 640x360-Entwurfsraster notiert und werden für 1280x720 verdoppelt.
+ */
+const K = 2;
+function scaled(c, k = K) {
+  return {
+    width: c.width / k,
+    height: c.height / k,
+    set: (x, y, hex) => c.rect(x * k, y * k, k, k, hex),
+    rect: (x, y, w, h, hex) => c.rect(Math.round(x * k), Math.round(y * k), Math.round(w * k), Math.round(h * k), hex),
+    outline: (x, y, w, h, hex) => { c.rect(x * k, y * k, w * k, k, hex); c.rect(x * k, (y + h) * k - k, w * k, k, hex); c.rect(x * k, y * k, k, h * k, hex); c.rect((x + w) * k - k, y * k, k, h * k, hex); },
+    circle: (cx, cy, r, hex) => c.circle(Math.round(cx * k + k / 2), Math.round(cy * k + k / 2), Math.round(r * k), hex),
+    noise: (x, y, w, h, hex, density, seed) => c.noise(x * k, y * k, w * k, h * k, hex, density, seed),
+    pattern: (x, y, rows, legend) => rows.forEach((row, ry) => [...row].forEach((ch, rx) => { if (ch !== '.' && legend[ch]) c.rect((x + rx) * k, (y + ry) * k, k, k, legend[ch]); })),
+    save: (file) => c.save(file),
+  };
+}
+const sideCanvas = (w, h, fill) => scaled(new Canvas(w * K, h * K, fill));
+
 // ---------------------------------------------------------------- Seitenansicht-Fahrzeuge (Front links)
 /** Rad mit Reifen, Felge, Nabe und Profil. */
 function wheel(c, cx, cy, r) {
@@ -152,7 +173,7 @@ function wheel(c, cx, cy, r) {
 function gkwSide(file) {
   const w = 224;
   const h = 96;
-  const c = new Canvas(w, h);
+  const c = sideCanvas(w, h);
   const B = P.thwBlue, BD = P.thwBlueDark, BL = P.thwBlueLight, W = P.white, S = P.grayLight, SD = P.gray, D = P.dark;
   // Rahmen
   c.rect(10, 70, 208, 8, D);
@@ -210,7 +231,7 @@ function gkwSide(file) {
 function mtwSide(file) {
   const w = 128;
   const h = 72;
-  const c = new Canvas(w, h);
+  const c = sideCanvas(w, h);
   const B = P.thwBlue, BD = P.thwBlueDark, BL = P.thwBlueLight, W = P.white, S = P.grayLight, D = P.dark;
   c.rect(8, 20, 116, 42, B);
   c.rect(4, 28, 6, 34, B); c.rect(6, 24, 4, 4, B);
@@ -236,9 +257,9 @@ function mtwSide(file) {
 mtwSide('assets/sprites/vehicle-mtw-side.png');
 gkwSide('assets/sprites/vehicle-gkw-side.png');
 
-// ---------------------------------------------------------------- Helfer (Seitenansicht, 24x48, 2 Frames: stehen / gehen)
+// ---------------------------------------------------------------- Helfer (Seitenansicht, 24x48 im Entwurf, 2 Frames: stehen / gehen)
 {
-  const c = new Canvas(48, 48);
+  const c = sideCanvas(48, 48);
   const frame = (ox, step) => {
     c.rect(ox + 6, 2, 12, 8, P.white); // Helm
     c.rect(ox + 5, 9, 14, 2, P.grayLight); // Helmrand
@@ -258,7 +279,7 @@ gkwSide('assets/sprites/vehicle-gkw-side.png');
   c.save('assets/sprites/helper.png');
 }
 
-// ---------------------------------------------------------------- Szenen-Hintergründe (640x360)
+// ---------------------------------------------------------------- Szenen-Hintergründe (640x360 im Entwurf, gerendert 1280x720)
 const SW = 640;
 const SH = 360;
 function bricks(c, x, y, w, h, a, b, bw = 12, bh = 6) {
@@ -277,7 +298,7 @@ function window_(c, x, y, w, h) {
 }
 // Fahrzeughalle: Innenraum
 {
-  const c = new Canvas(SW, SH, P.concreteLight);
+  const c = sideCanvas(SW, SH, P.concreteLight);
   bricks(c, 0, 48, SW, 252, P.concreteLight, P.concrete, 16, 8); // Rückwand
   c.rect(0, 0, SW, 48, P.grayLight); // Deckenstreifen
   for (let x = 40; x < SW; x += 120) { c.rect(x, 8, 48, 8, P.white); c.rect(x + 2, 16, 44, 2, P.yellow); } // Leuchten
@@ -314,7 +335,7 @@ function window_(c, x, y, w, h) {
 }
 // Sturmschaden: Landstraße
 {
-  const c = new Canvas(SW, SH, P.sky);
+  const c = sideCanvas(SW, SH, P.sky);
   c.rect(0, 0, SW, 200, P.sky);
   c.rect(0, 30, SW, 40, P.skyLight); c.noise(0, 30, SW, 40, P.grayLight, 0.3, 31); // Wolkenband
   c.rect(0, 120, SW, 80, P.oliveDark); // Waldrand
@@ -336,7 +357,7 @@ function window_(c, x, y, w, h) {
 }
 // Wasserschaden: Mehrfamilienhaus mit Kellertreppe
 {
-  const c = new Canvas(SW, SH, P.sky);
+  const c = sideCanvas(SW, SH, P.sky);
   c.rect(0, 20, SW, 30, P.skyLight); c.noise(0, 20, SW, 30, P.grayLight, 0.2, 43);
   bricks(c, 0, 0, 400, 260, P.tan, P.brownLight, 16, 8); // Fassade
   c.outline(0, 0, 400, 260, P.brownDark);

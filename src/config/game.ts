@@ -1,8 +1,8 @@
 import paletteJson from './palette.json';
 
 /** Interne Auflösung der Szenen. Wird per Integer-Skalierung auf das Fenster gebracht. */
-export const GAME_WIDTH = 640;
-export const GAME_HEIGHT = 360;
+export const GAME_WIDTH = 1280;
+export const GAME_HEIGHT = 720;
 export const TILE_SIZE = 64;
 
 /** Feste Farbpalette (siehe palette.json). Als Zahl für Phaser-Graphics. */

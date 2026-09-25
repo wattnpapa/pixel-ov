@@ -12,19 +12,19 @@ import { continueFromState } from '../systems/flow';
 import { Sound } from '../systems/Sound';
 import { SideSceneBase } from './SideSceneBase';
 
-const GROUND_Y = 300;
+const GROUND_Y = 600;
 
 const HOTSPOTS: Record<string, HotspotDef> = {
-  monitor: { id: 'monitor', label: 'Alarmmonitor', x: 16, y: 80, w: 88, h: 68, walkX: 80 },
-  workbench: { id: 'workbench', label: 'Werkbank', x: 12, y: 220, w: 100, h: 80, walkX: 124 },
-  mtw: { id: 'mtw', label: 'MTW', x: 124, y: 212, w: 160, h: 92, walkX: 184 },
-  gkw: { id: 'gkw', label: 'GKW', x: 316, y: 192, w: 232, h: 112, walkX: 300 },
-  gate: { id: 'gate', label: 'Tor', x: 552, y: 80, w: 88, h: 220, walkX: 536 },
+  monitor: { id: 'monitor', label: 'Alarmmonitor', x: 32, y: 160, w: 176, h: 136, walkX: 160 },
+  workbench: { id: 'workbench', label: 'Werkbank', x: 24, y: 440, w: 200, h: 160, walkX: 248 },
+  mtw: { id: 'mtw', label: 'MTW', x: 248, y: 424, w: 320, h: 184, walkX: 368 },
+  gkw: { id: 'gkw', label: 'GKW', x: 632, y: 384, w: 464, h: 224, walkX: 600 },
+  gate: { id: 'gate', label: 'Tor', x: 1104, y: 160, w: 176, h: 440, walkX: 1072 },
 };
 
 const VEHICLE_POS: Record<VehicleId, { x: number; y: number }> = {
-  mtw: { x: 140, y: 304 },
-  gkw: { x: 322, y: 304 },
+  mtw: { x: 280, y: 608 },
+  gkw: { x: 644, y: 608 },
 };
 
 /** Fahrzeughalle: Alarmmonitor, zwei Stellplätze, Werkbank, Tor. */
@@ -48,16 +48,16 @@ export class HallScene extends SideSceneBase {
       return;
     }
 
-    this.setupSide('hall-bg', GROUND_Y, 240);
+    this.setupSide('hall-bg', GROUND_Y, 480);
 
     for (const vid of VEHICLE_IDS) {
       const def = VEHICLES[vid];
       const pos = VEHICLE_POS[vid];
       this.add.image(pos.x, pos.y, def.sideSprite).setOrigin(0, 1).setDepth(10);
-      this.vehicleLabels[vid] = this.add.bitmapText(pos.x + 8, pos.y + 8, FONT, '').setDepth(11);
+      this.vehicleLabels[vid] = this.add.bitmapText(pos.x + 16, pos.y + 16, FONT, '').setDepth(11);
     }
-    this.monitorGlow = this.add.rectangle(20, 84, 80, 60, PALETTE.red, 0.6).setOrigin(0).setDepth(5).setVisible(false);
-    this.monitorText = this.add.bitmapText(24, 88, FONT, '').setDepth(6).setMaxWidth(76).setTint(PALETTE.greenLight);
+    this.monitorGlow = this.add.rectangle(40, 168, 160, 120, PALETTE.red, 0.6).setOrigin(0).setDepth(5).setVisible(false);
+    this.monitorText = this.add.bitmapText(48, 176, FONT, '').setDepth(6).setMaxWidth(152).setTint(PALETTE.greenLight);
 
     for (const def of Object.values(HOTSPOTS)) this.addHotspot(def, (d) => void this.onHotspot(d));
     this.refresh();
@@ -196,7 +196,7 @@ export class HallScene extends SideSceneBase {
     const choice = await this.dialog.choose('Nachbereitung. Was zuerst?', [...tasks.map((t) => t.label), 'Später']);
     if (choice >= tasks.length) return;
     const task = tasks[choice];
-    if (task.kind === 'refuel') await this.walkTo(VEHICLE_POS[task.vehicleId].x + 60);
+    if (task.kind === 'refuel') await this.walkTo(VEHICLE_POS[task.vehicleId].x + 120);
     await this.doAction(task.label, task.durationMs);
     completeServiceTask(task);
     this.refresh();

@@ -33,11 +33,11 @@ export class BootScene extends Phaser.Scene {
     for (const key of ['vehicle-mtw-top', 'vehicle-gkw-top', 'civil-car-a-top', 'civil-car-b-top', 'civil-car-c-top', 'vehicle-mtw-side', 'vehicle-gkw-side']) {
       this.load.image(key, `sprites/${key}.png`);
     }
-    this.load.spritesheet('helper', 'sprites/helper.png', { frameWidth: 24, frameHeight: 48 });
+    this.load.spritesheet('helper', 'sprites/helper.png', { frameWidth: 48, frameHeight: 96 });
     for (const key of ['hall-bg', 'storm-tree-bg', 'water-basement-bg']) this.load.image(key, `scenes/${key}.png`);
 
-    const bar = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 0, 12, PALETTE.yellow);
-    this.load.on('progress', (p: number) => (bar.width = p * 240));
+    const bar = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 0, 24, PALETTE.yellow);
+    this.load.on('progress', (p: number) => (bar.width = p * 480));
   }
 
   create(): void {
@@ -65,15 +65,15 @@ export class BootScene extends Phaser.Scene {
 
   private showTitle(): void {
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, PALETTE.thwBlueDark).setOrigin(0);
-    this.add.rectangle(0, 120, GAME_WIDTH, 8, PALETTE.yellow).setOrigin(0);
-    this.add.bitmapText(GAME_WIDTH / 2, 56, FONT, 'EINSATZBEREIT').setOrigin(0.5, 0).setScale(2).setTint(PALETTE.white);
-    this.add.bitmapText(GAME_WIDTH / 2, 140, FONT, 'Du führst einen THW-Ortsverband.\nDrei Einsätze. Keine Toten. Los.').setOrigin(0.5, 0).setCenterAlign().setTint(PALETTE.grayLight);
+    this.add.rectangle(0, 240, GAME_WIDTH, 16, PALETTE.yellow).setOrigin(0);
+    this.add.bitmapText(GAME_WIDTH / 2, 112, FONT, 'EINSATZBEREIT').setOrigin(0.5, 0).setScale(2).setTint(PALETTE.white);
+    this.add.bitmapText(GAME_WIDTH / 2, 280, FONT, 'Du führst einen THW-Ortsverband.\nDrei Einsätze. Keine Toten. Los.').setOrigin(0.5, 0).setCenterAlign().setTint(PALETTE.grayLight);
 
     const canContinue = hasSave() && load();
     const options = canContinue ? ['Weiter', 'Neu starten'] : ['Neues Spiel'];
     options.forEach((label, i) => {
-      const y = 220 + i * 32;
-      const row = this.add.rectangle(GAME_WIDTH / 2, y, 240, 26, PALETTE.thwBlue).setStrokeStyle(2, PALETTE.yellow).setInteractive({ useHandCursor: true });
+      const y = 440 + i * 64;
+      const row = this.add.rectangle(GAME_WIDTH / 2, y, 480, 52, PALETTE.thwBlue).setStrokeStyle(4, PALETTE.yellow).setInteractive({ useHandCursor: true });
       this.add.bitmapText(GAME_WIDTH / 2, y, FONT, label).setOrigin(0.5).setTint(PALETTE.white);
       row.on('pointerover', () => row.setFillStyle(PALETTE.thwBlueLight));
       row.on('pointerout', () => row.setFillStyle(PALETTE.thwBlue));
@@ -82,6 +82,6 @@ export class BootScene extends Phaser.Scene {
         this.scene.start(SCENES.hall);
       });
     });
-    this.add.bitmapText(GAME_WIDTH / 2, GAME_HEIGHT - 44, FONT, 'Maus / Touch: klicken. Fahren: Pfeile oder WASD, Leertaste = Sondersignal').setOrigin(0.5, 0).setTint(PALETTE.gray).setMaxWidth(GAME_WIDTH - 20).setCenterAlign();
+    this.add.bitmapText(GAME_WIDTH / 2, GAME_HEIGHT - 88, FONT, 'Maus / Touch: klicken. Fahren: Pfeile oder WASD, Leertaste = Sondersignal').setOrigin(0.5, 0).setTint(PALETTE.gray).setMaxWidth(GAME_WIDTH - 40).setCenterAlign();
   }
 }
