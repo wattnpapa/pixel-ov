@@ -53,7 +53,7 @@ node tools/fetch-osm.mjs                 # holt Straßen, Gebäude, Wasser, Grü
 node tools/gen-map-osm.mjs               # rastert daraus assets/maps/city.tmj (4 m pro Tile = 64 px, 500 x 500 Tiles)
 ```
 
-Der Abruf braucht Netzzugang zu `nominatim.openstreetmap.org` (Adresse) und `overpass-api.de` (Daten). Die heruntergeladene Datei wird eingecheckt, damit der Generator ohne Netz läuft. Unterkunft, beide Einsatzzonen, die Sperrung und die Zivilrouten platziert der Generator automatisch auf dem Straßennetz: Unterkunft am nächsten Straßen-Tile zur Adresse, Einsätze 550 bis 850 m entfernt in verschiedenen Richtungen, Sperrung auf dem Weg zum ersten Einsatz.
+Der Abruf braucht Netzzugang zu `nominatim.openstreetmap.org` (Adresse) und `overpass-api.de` (Daten). Die heruntergeladene Datei liegt eingecheckt unter `data/osm/oldenburg-artillerieweg.json` (Stand siehe `fetchedAt` darin), damit der Generator ohne Netz läuft. Die aktuelle `assets/maps/city.tmj` ist daraus erzeugt; `tools/gen-map.mjs` liefert weiter die kleine Schachbrett-Testkarte. Unterkunft, beide Einsatzzonen, die Sperrung und die Zivilrouten platziert der Generator automatisch auf dem Straßennetz: Unterkunft am nächsten Wohnstraßen-Tile zur Adresse (das Gebäude an der Adresse wird als THW-Halle eingefärbt), Einsätze 550 bis 850 m entfernt in verschiedenen Richtungen, Sperrung auf dem Weg zum ersten Einsatz. Autobahn und Zufahrten sind befahrbar, bekommen aber weder Zonen noch Gehwege.
 
 Raster und Auflösung:
 

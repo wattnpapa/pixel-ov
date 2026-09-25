@@ -29,6 +29,7 @@ const marks = new Array(W * H).fill(0);
 const buildings = new Array(W * H).fill(0);
 const roadMask = new Uint8Array(W * H); // 1 = befahrbar (breite Straße), 2 = Weg
 const roadDir = new Float32Array(W * H); // Richtung der Straße am Tile in Grad
+const roadClass = new Uint8Array(W * H); // 1 = Stadtstraße, 2 = Autobahn/Schnellstraße, 3 = Zufahrt/Service
 const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 const at = (layer, x, y, v) => { if (inside(x, y)) layer[y * W + x] = v; };
 const get = (layer, x, y) => (inside(x, y) ? layer[y * W + x] : 0);
@@ -102,7 +103,7 @@ for (const w of ways) {
   const t = w.tags ?? {};
   if (!t.building) continue;
   const pts = geom(w);
-  const roof = ['roof', 'roof-red', 'roof', 'roof-blue'][hash(w.id) % 4];
+  const roof = ['roof', 'roof-red', 'roof'][hash(w.id) % 3];
   const cells = [];
   fillPolygon(pts, (x, y) => cells.push([x, y]));
   if (cells.length === 0) {
@@ -125,6 +126,8 @@ const ROAD_WIDTH = {
   service: 2, motorway_link: 4, trunk_link: 4, primary_link: 4, secondary_link: 3, tertiary_link: 3,
 };
 const PATH_TYPES = new Set(['footway', 'cycleway', 'path', 'track', 'pedestrian', 'bridleway']);
+const FAST_TYPES = new Set(['motorway', 'trunk', 'motorway_link', 'trunk_link', 'primary_link']);
+const CITY_TYPES = new Set(['primary', 'secondary', 'tertiary', 'unclassified', 'residential', 'living_street', 'secondary_link', 'tertiary_link']);
 const roadWays = [];
 for (const w of ways) {
   const t = w.tags ?? {};
@@ -137,7 +140,8 @@ for (const w of ways) {
   const width = ROAD_WIDTH[t.highway];
   if (!width) continue;
   const pts = geom(w);
-  roadWays.push({ way: w, pts, width, name: t.name ?? '' });
+  const cls = FAST_TYPES.has(t.highway) ? 2 : CITY_TYPES.has(t.highway) ? 1 : 3;
+  roadWays.push({ way: w, pts, width, name: t.name ?? '', cls });
   strokeLine(pts, width, (x, y, ang) => {
     if (!inside(x, y)) return;
     at(ground, x, y, id('road'));
@@ -145,6 +149,8 @@ for (const w of ways) {
     at(marks, x, y, 0);
     roadMask[y * W + x] = 1;
     roadDir[y * W + x] = ang;
+    // Stadtstraßen überschreiben die Klasse von Zufahrten, Autobahnen bleiben Autobahn
+    if (roadClass[y * W + x] === 0 || cls < roadClass[y * W + x]) roadClass[y * W + x] = cls;
   });
 }
 // Mittellinien: Tile liegt auf der Mittellinie, wenn Straße >= 3 breit
@@ -159,7 +165,7 @@ for (const r of roadWays) {
 // Gehwege neben Straßen
 for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
   if (roadMask[y * W + x] || get(buildings, x, y)) continue;
-  const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => inside(x + dx, y + dy) && roadMask[(y + dy) * W + x + dx] === 1);
+  const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => inside(x + dx, y + dy) && roadMask[(y + dy) * W + x + dx] === 1 && roadClass[(y + dy) * W + x + dx] === 1);
   if (near && get(ground, x, y) !== id('water')) at(ground, x, y, id('sidewalk'));
 }
 
@@ -168,7 +174,7 @@ const centerTile = toTile(center.lat, center.lon);
 function nearestRoadTile(tx, ty, maxR = 40) {
   let best = null;
   for (let y = Math.floor(ty - maxR); y <= ty + maxR; y++) for (let x = Math.floor(tx - maxR); x <= tx + maxR; x++) {
-    if (!inside(x, y) || roadMask[y * W + x] !== 1) continue;
+    if (!inside(x, y) || roadMask[y * W + x] !== 1 || roadClass[y * W + x] !== 1) continue;
     const d = Math.hypot(x + 0.5 - tx, y + 0.5 - ty);
     if (!best || d < best.d) best = { x, y, d };
   }
@@ -177,21 +183,29 @@ function nearestRoadTile(tx, ty, maxR = 40) {
 const depot = nearestRoadTile(centerTile.x, centerTile.y);
 if (!depot) throw new Error('Keine Straße in der Nähe der Unterkunft gefunden');
 const depotHeading = Math.round(roadDir[depot.y * W + depot.x]);
-// Unterkunftsgebäude neben der Straße (senkrecht zur Fahrtrichtung, auf der freien Seite)
+// Das Gebäude an der Adresse (oder das nächste) wird zur THW-Halle: blaues Dach, Tor zur Straße
 {
-  const rad = (depotHeading * Math.PI) / 180;
-  const nx = Math.round(-Math.sin(rad));
-  const ny = Math.round(Math.cos(rad));
-  for (const side of [1, -1]) {
-    const bx = depot.x + nx * side * 4;
-    const by = depot.y + ny * side * 4;
-    let free = true;
-    for (let dy = -2; dy <= 2; dy++) for (let dx = -3; dx <= 3; dx++) if (!inside(bx + dx, by + dy) || roadMask[(by + dy) * W + bx + dx]) free = false;
-    if (!free) continue;
-    for (let dy = -2; dy <= 2; dy++) for (let dx = -3; dx <= 3; dx++) { at(buildings, bx + dx, by + dy, id(dy === 2 ? 'depot-wall' : 'roof-blue')); at(ground, bx + dx, by + dy, id('depot-floor')); }
-    // Ausfahrt
-    for (let s = 1; s < 4 * 1; s++) { const ex = depot.x + nx * side * s; const ey = depot.y + ny * side * s; at(ground, ex, ey, id('depot-floor')); at(ground, ex + ny, ey + nx, id('depot-floor')); at(buildings, ex, ey, 0); at(buildings, ex + ny, ey + nx, 0); }
-    break;
+  const buildingWays = ways.filter((w) => w.tags?.building);
+  const dist2 = (w) => { const pts = geom(w); const cx = pts.reduce((a, p) => a + p.x, 0) / pts.length; const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length; return (cx - centerTile.x) ** 2 + (cy - centerTile.y) ** 2; };
+  const home = buildingWays.sort((a, b) => dist2(a) - dist2(b))[0];
+  if (home) {
+    const cells = [];
+    fillPolygon(geom(home), (x, y) => cells.push([x, y]));
+    const set = new Set(cells.map(([x, y]) => y * W + x));
+    for (const [x, y] of cells) {
+      if (get(buildings, x, y) === 0) continue; // Straße hat gewonnen
+      const wallRow = !set.has((y + 1) * W + x);
+      at(buildings, x, y, id(wallRow ? 'depot-wall' : 'roof-blue'));
+    }
+    // Zufahrt vom Gebäude zur Straße als Hallenboden
+    const cx = Math.round(cells.reduce((a, c) => a + c[0], 0) / Math.max(1, cells.length));
+    const cy = Math.round(cells.reduce((a, c) => a + c[1], 0) / Math.max(1, cells.length));
+    const steps = Math.max(Math.abs(depot.x - cx), Math.abs(depot.y - cy));
+    for (let i = 0; i <= steps; i++) {
+      const x = Math.round(cx + ((depot.x - cx) * i) / steps);
+      const y = Math.round(cy + ((depot.y - cy) * i) / steps);
+      if (inside(x, y) && !roadMask[y * W + x] && !set.has(y * W + x)) { at(ground, x, y, id('depot-floor')); at(buildings, x, y, 0); }
+    }
   }
 }
 
@@ -199,7 +213,7 @@ const depotHeading = Math.round(roadDir[depot.y * W + depot.x]);
 function roadTilesInRing(minM, maxM) {
   const out = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (roadMask[y * W + x] !== 1) continue;
+    if (roadMask[y * W + x] !== 1 || roadClass[y * W + x] !== 1) continue;
     const d = Math.hypot(x - depot.x, y - depot.y) * METERS_PER_TILE;
     if (d >= minM && d <= maxM) out.push({ x, y, ang: Math.atan2(y - depot.y, x - depot.x) });
   }
@@ -220,10 +234,10 @@ if (towardA) {
   for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
     const x = towardA.x + dx;
     const y = towardA.y + dy;
-    if (inside(x, y) && roadMask[y * W + x] === 1) { at(buildings, x, y, id('construction')); }
+    if (inside(x, y) && roadMask[y * W + x] === 1 && roadClass[y * W + x] === 1) { at(buildings, x, y, id('construction')); }
   }
 }
-for (const m of [missionA, missionB]) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) at(marks, m.x + dx, m.y + dy, id('marker'));
+for (const m of [missionA, missionB]) at(marks, m.x, m.y, id('marker'));
 
 const px = (t) => t * T;
 const zoneRect = (x, y) => ({ x: px(x - 1), y: px(y - 1), width: px(3), height: px(3) });
@@ -237,7 +251,7 @@ if (towardA) zones.push({ id: 4, name: 'sperrung', ...zoneRect(towardA.x, toward
 
 // ---------------------------------------------------------------- 5. Zivilrouten: lange Straßenzüge, hin und zurück
 const wayLen = (pts) => pts.reduce((a, p, i) => (i ? a + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0), 0);
-const longWays = roadWays.filter((r) => r.width >= 3 && wayLen(r.pts) * METERS_PER_TILE > 250).sort((a, b) => wayLen(b.pts) - wayLen(a.pts));
+const longWays = roadWays.filter((r) => r.cls === 1 && r.width >= 3 && wayLen(r.pts) * METERS_PER_TILE > 250).sort((a, b) => wayLen(b.pts) - wayLen(a.pts));
 const sprites = ['civil-car-a-top', 'civil-car-b-top', 'civil-car-c-top', 'civil-car-a-top', 'civil-car-b-top'];
 const objects = [{ id: 10, name: 'spawn-depot', type: 'spawn', x: px(depot.x) + 32, y: px(depot.y) + 32, width: 0, height: 0, point: true, rotation: 0 }];
 longWays.slice(0, 5).forEach((r, i) => {
