@@ -3,19 +3,21 @@ import { PALETTE, SCENES } from '../config/game';
 import { VEHICLES, type VehicleDef } from '../config/vehicles';
 import { CAMPAIGN } from '../config/campaign';
 import { DriveInput } from '../systems/Input';
-import type { DriveUiScene } from './DriveUiScene';
 import { Sound } from '../systems/Sound';
+import { MapRenderer, type CityMap } from '../systems/MapRenderer';
 import { arriveAtDepot, damageVehicle, formatTime, setPhase, state, tickMission } from '../systems/GameState';
+import type { DriveUiScene } from './DriveUiScene';
 
 export interface DriveSceneData {
   mode: 'out' | 'back';
 }
 
-interface Zone {
+export interface Zone {
   name: string;
   kind: string;
   mission?: string;
   heading: number;
+  street: string;
   rect: Phaser.Geom.Rectangle;
 }
 
@@ -28,15 +30,20 @@ interface CivilCar {
   factor: number;
 }
 
-const DRIVE_ZOOM = 1;
 const SIREN_RANGE = 520;
 const ARRIVE_SPEED = 32;
-/** Anzeige: px/s in km/h (64 px = 4 m, also 16 px/s = 1 m/s) */
+/** Anzeige: px/s in km/h (16 px pro Meter) */
 const KMH_PER_PXS = 3.6 / 16;
 
+/** Adresse einer Einsatzzone aus der Karte, mit Rückfall auf den Kampagnentext. */
+export function addressFor(map: CityMap | undefined, missionId: string, fallback: string): string {
+  const z = map?.zones.find((zz) => zz.kind === 'mission' && zz.mission === missionId);
+  return z?.street ? `${z.street}, Oldenburg` : fallback;
+}
+
 /**
- * Top-down-Fahrmodus auf der Stadtkarte. Arcade-Physik: das Fahrzeug dreht sich
- * um die eigene Achse und beschleunigt in Fahrtrichtung.
+ * Top-down-Fahrmodus auf der Vektor-Stadtkarte. Arcade-Physik für Fahrzeug und
+ * Zivilverkehr, Gebäude und Wasser über das Kollisionsraster des MapRenderers.
  */
 export class DriveScene extends Phaser.Scene {
   private mode: 'out' | 'back' = 'out';
@@ -46,7 +53,8 @@ export class DriveScene extends Phaser.Scene {
   private speed = 0;
   private heading = 0;
   private controls!: DriveInput;
-  private zones: Zone[] = [];
+  private cityMap!: MapRenderer;
+  zones: Zone[] = [];
   private target!: Zone;
   private targetMarker!: Phaser.GameObjects.Rectangle;
   private arrow!: Phaser.GameObjects.Triangle;
@@ -71,17 +79,10 @@ export class DriveScene extends Phaser.Scene {
 
     const s = state();
     this.vehicleDef = VEHICLES[s.currentVehicle ?? 'mtw'];
+    const map = this.cache.json.get('city') as CityMap;
+    this.cityMap = new MapRenderer(this, map);
 
-    const map = this.make.tilemap({ key: 'city' });
-    const tiles = map.addTilesetImage('city-tileset', 'city-tileset');
-    if (!tiles) throw new Error('Tileset fehlt');
-    map.createLayer('Boden', tiles, 0, 0);
-    map.createLayer('Markierung', tiles, 0, 0);
-    const buildings = map.createLayer('Gebaeude', tiles, 0, 0);
-    if (!buildings) throw new Error('Layer Gebaeude fehlt');
-    buildings.setCollisionByProperty({ collides: true });
-
-    this.zones = this.readZones(map);
+    this.zones = map.zones.map((z) => ({ name: z.name, kind: z.kind, mission: z.mission, heading: z.heading, street: z.street, rect: new Phaser.Geom.Rectangle(z.x, z.y, z.w, z.h) }));
     const depot = this.zones.find((z) => z.kind === 'depot');
     const missionZone = this.zones.find((z) => z.kind === 'mission' && z.mission === s.progress?.missionId);
     if (!depot) throw new Error('Zone unterkunft fehlt');
@@ -93,34 +94,33 @@ export class DriveScene extends Phaser.Scene {
     this.player.setCircle(r, this.player.width / 2 - r, this.player.height / 2 - r);
     this.heading = spawnZone.heading;
     this.player.setAngle(this.heading);
-    this.sirenLight = this.add.rectangle(0, 0, 14, 14, PALETTE.thwBlueLight).setDepth(11).setVisible(false);
+    this.sirenLight = this.add.rectangle(0, 0, 9, 9, PALETTE.thwBlueLight).setDepth(11).setVisible(false);
 
-    this.physics.add.collider(this.player, buildings, () => this.onWallHit());
-    this.createCivilTraffic(map, buildings);
+    this.createCivilTraffic(map);
 
     this.targetMarker = this.add
       .rectangle(this.target.rect.centerX, this.target.rect.centerY, this.target.rect.width, this.target.rect.height)
-      .setStrokeStyle(8, PALETTE.yellow)
+      .setStrokeStyle(4, PALETTE.yellow)
       .setDepth(5);
     this.tweens.add({ targets: this.targetMarker, alpha: 0.2, yoyo: true, repeat: -1, duration: 500 });
-    this.arrow = this.add.triangle(0, 0, 0, -14, 36, 0, 0, 14, PALETTE.yellow).setDepth(12);
+    this.arrow = this.add.triangle(0, 0, 0, -8, 22, 0, 0, 8, PALETTE.yellow).setDepth(12);
 
-    // 64px-Tiles bei Zoom 1 auf 1280x720: 20 x 11 Tiles im Bild, das HUD liegt in der Overlay-Szene.
-    this.cameras.main.setZoom(DRIVE_ZOOM);
-    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.cameras.main.setBounds(0, 0, map.width, map.height);
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
     this.cameras.main.setRoundPixels(true);
+    this.cityMap.update(this.cameras.main);
 
     this.controls = new DriveInput(this);
-    this.scene.launch(SCENES.driveUi, { input: this.controls });
+    this.scene.launch(SCENES.driveUi, { input: this.controls, drive: this });
 
     const alarm = s.progress ? CAMPAIGN[s.progress.alarmIndex] : null;
-    const targetText = this.mode === 'out' ? `Ziel: ${alarm?.address ?? '?'}` : 'Ziel: Unterkunft';
+    const targetText = this.mode === 'out' ? `Ziel: ${alarm ? addressFor(map, alarm.missionId, alarm.address) : '?'}` : 'Ziel: Unterkunft';
     this.time.delayedCall(50, () => this.toast(this.mode === 'out' ? `Ausrücken mit dem ${this.vehicleDef.name}. ${targetText}` : 'Rückfahrt zur Unterkunft.', 2500));
     Sound.play('engine-start');
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.controls.destroy();
+      this.cityMap.destroy();
       this.scene.stop(SCENES.driveUi);
     });
   }
@@ -134,35 +134,22 @@ export class DriveScene extends Phaser.Scene {
     this.ui()?.toast(text, ms);
   }
 
-  private readZones(map: Phaser.Tilemaps.Tilemap): Zone[] {
-    const layer = map.getObjectLayer('Zonen');
-    if (!layer) return [];
-    return layer.objects.map((o) => {
-      const props = Object.fromEntries((o.properties ?? []).map((p: { name: string; value: unknown }) => [p.name, p.value]));
-      return {
-        name: o.name,
-        kind: String(props.kind ?? ''),
-        mission: props.mission ? String(props.mission) : undefined,
-        heading: Number(props.heading ?? 0),
-        rect: new Phaser.Geom.Rectangle(o.x ?? 0, o.y ?? 0, o.width ?? 16, o.height ?? 16),
-      };
-    });
+  /** Für die Übersichtskarte: Spieler, Ziel und Unterkunft in Weltkoordinaten. */
+  overviewInfo(): { player: { x: number; y: number }; target: { x: number; y: number }; depot: { x: number; y: number }; heading: number } {
+    const depot = this.zones.find((z) => z.kind === 'depot')!;
+    return { player: { x: this.player.x, y: this.player.y }, target: { x: this.target.rect.centerX, y: this.target.rect.centerY }, depot: { x: depot.rect.centerX, y: depot.rect.centerY }, heading: this.heading };
   }
 
-  private createCivilTraffic(map: Phaser.Tilemaps.Tilemap, buildings: Phaser.Tilemaps.TilemapLayer): void {
-    const layer = map.getObjectLayer('Objekte');
-    if (!layer) return;
+  private createCivilTraffic(map: CityMap): void {
     const group = this.physics.add.group({ immovable: true });
-    for (const o of layer.objects) {
-      if (o.type !== 'route' || !o.polygon) continue;
-      const props = Object.fromEntries((o.properties ?? []).map((p: { name: string; value: unknown }) => [p.name, p.value]));
-      const points = o.polygon.map((p) => new Phaser.Math.Vector2((o.x ?? 0) + p.x, (o.y ?? 0) + p.y));
-      const sprite = group.create(points[0].x, points[0].y, String(props.sprite ?? 'civil-car-a-top')) as Phaser.Physics.Arcade.Image;
+    for (const route of map.routes) {
+      const points = route.points.map(([x, y]) => new Phaser.Math.Vector2(x, y));
+      if (points.length < 2) continue;
+      const sprite = group.create(points[0].x, points[0].y, route.sprite) as Phaser.Physics.Arcade.Image;
       sprite.setDepth(9).setCircle(17, sprite.width / 2 - 17, sprite.height / 2 - 17);
-      this.cars.push({ sprite, points, next: 1, speed: Number(props.speed ?? 40), factor: 1 });
+      this.cars.push({ sprite, points, next: 1, speed: route.speed, factor: 1 });
     }
     this.physics.add.collider(this.player, group, () => this.onCarHit());
-    this.physics.add.collider(group, buildings);
   }
 
   private onWallHit(): void {
@@ -187,15 +174,26 @@ export class DriveScene extends Phaser.Scene {
 
   update(_time: number, deltaMs: number): void {
     if (this.arriving) return;
-    const dt = deltaMs / 1000;
+    const dt = Math.min(deltaMs, 50) / 1000;
     const s = state();
     if (s.progress && !s.progress.completed) tickMission(deltaMs);
 
     this.updatePlayer(dt);
     this.updateCars(dt);
+    this.cityMap.update(this.cameras.main);
     this.updateHud();
     this.checkClosureHint();
     this.checkArrival();
+  }
+
+  /** Prüft den Kreis um die Fahrzeugmitte gegen das Kollisionsraster. */
+  private hitsWall(x: number, y: number): boolean {
+    const r = this.vehicleDef.drive.bodyRadius;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      if (this.cityMap.isBlocked(x + Math.cos(a) * r, y + Math.sin(a) * r)) return true;
+    }
+    return this.cityMap.isBlocked(x, y);
   }
 
   private updatePlayer(dt: number): void {
@@ -226,6 +224,12 @@ export class DriveScene extends Phaser.Scene {
     if (c.right) this.heading += d.turnRate * steerFactor * dir * dt;
 
     const rad = Phaser.Math.DegToRad(this.heading);
+    // Wandkollision über das Raster: Schritt vorab prüfen, bei Treffer abprallen.
+    const nx = this.player.x + Math.cos(rad) * this.speed * dt;
+    const ny = this.player.y + Math.sin(rad) * this.speed * dt;
+    if (this.hitsWall(nx, ny)) {
+      this.onWallHit();
+    }
     this.player.setAngle(this.heading);
     this.player.setVelocity(Math.cos(rad) * this.speed, Math.sin(rad) * this.speed);
 
@@ -238,7 +242,7 @@ export class DriveScene extends Phaser.Scene {
     const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, tx, ty);
     const ang = Phaser.Math.Angle.Between(this.player.x, this.player.y, tx, ty);
     this.arrow.setVisible(dist > 280);
-    this.arrow.setPosition(this.player.x + Math.cos(ang) * 110, this.player.y + Math.sin(ang) * 110);
+    this.arrow.setPosition(this.player.x + Math.cos(ang) * 80, this.player.y + Math.sin(ang) * 80);
     this.arrow.setRotation(ang);
   }
 
@@ -278,7 +282,7 @@ export class DriveScene extends Phaser.Scene {
     if (!closure) return;
     if (Phaser.Math.Distance.Between(this.player.x, this.player.y, closure.rect.centerX, closure.rect.centerY) < 224) {
       this.closureHintShown = true;
-      this.toast('Baustelle. Hier geht es nicht weiter, Umweg über die Umgehungsstraße.', 2500);
+      this.toast('Baustelle. Hier geht es nicht weiter, Umweg fahren.', 2500);
     }
   }
 

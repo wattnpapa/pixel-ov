@@ -239,52 +239,120 @@ if (towardA) {
 }
 for (const m of [missionA, missionB]) at(marks, m.x, m.y, id('marker'));
 
-const px = (t) => t * T;
-const zoneRect = (x, y) => ({ x: px(x - 1), y: px(y - 1), width: px(3), height: px(3) });
+/** Name der nächsten benannten Straße zu einem Tile. */
+function streetNameAt(tx, ty) {
+  let best = null;
+  for (const r of roadWays) {
+    if (!r.name) continue;
+    for (let i = 0; i + 1 < r.pts.length; i++) {
+      const a = r.pts[i]; const b = r.pts[i + 1];
+      const l2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2 || 1;
+      const t = Math.max(0, Math.min(1, ((tx - a.x) * (b.x - a.x) + (ty - a.y) * (b.y - a.y)) / l2));
+      const d = Math.hypot(a.x + (b.x - a.x) * t - tx, a.y + (b.y - a.y) * t - ty);
+      if (!best || d < best.d) best = { d, name: r.name };
+    }
+  }
+  return best && best.d < 6 ? best.name : '';
+}
+
+// Ausgabe in Pixeln: PX_PER_M Pixel pro Meter (Fahrzeuge sind in diesem Maßstab gezeichnet)
+const PX_PER_M = 16;
+const mpx = (tiles) => Math.round(tiles * METERS_PER_TILE * PX_PER_M);
 const heading = (t) => (Math.round(roadDir[t.y * W + t.x]) + 360) % 360;
+const ZONE_M = 12;
+const zone = (name, t, extra) => ({ name, x: mpx(t.x + 0.5) - (ZONE_M * PX_PER_M) / 2, y: mpx(t.y + 0.5) - (ZONE_M * PX_PER_M) / 2, w: ZONE_M * PX_PER_M, h: ZONE_M * PX_PER_M, heading: heading(t), street: streetNameAt(t.x, t.y), ...extra });
 const zones = [
-  { id: 1, name: 'unterkunft', ...zoneRect(depot.x, depot.y), properties: [{ name: 'kind', type: 'string', value: 'depot' }, { name: 'heading', type: 'int', value: depotHeading }] },
-  { id: 2, name: 'einsatz-storm-tree', ...zoneRect(missionA.x, missionA.y), properties: [{ name: 'kind', type: 'string', value: 'mission' }, { name: 'mission', type: 'string', value: 'storm-tree' }, { name: 'heading', type: 'int', value: heading(missionA) }] },
-  { id: 3, name: 'einsatz-water-basement', ...zoneRect(missionB.x, missionB.y), properties: [{ name: 'kind', type: 'string', value: 'mission' }, { name: 'mission', type: 'string', value: 'water-basement' }, { name: 'heading', type: 'int', value: heading(missionB) }] },
+  zone('unterkunft', depot, { kind: 'depot' }),
+  zone('einsatz-storm-tree', missionA, { kind: 'mission', mission: 'storm-tree' }),
+  zone('einsatz-water-basement', missionB, { kind: 'mission', mission: 'water-basement' }),
 ];
-if (towardA) zones.push({ id: 4, name: 'sperrung', ...zoneRect(towardA.x, towardA.y), properties: [{ name: 'kind', type: 'string', value: 'closure' }] });
+if (towardA) zones.push(zone('sperrung', towardA, { kind: 'closure' }));
 
 // ---------------------------------------------------------------- 5. Zivilrouten: lange Straßenzüge, hin und zurück
 const wayLen = (pts) => pts.reduce((a, p, i) => (i ? a + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0), 0);
 const longWays = roadWays.filter((r) => r.cls === 1 && r.width >= 3 && wayLen(r.pts) * METERS_PER_TILE > 250).sort((a, b) => wayLen(b.pts) - wayLen(a.pts));
 const sprites = ['civil-car-a-top', 'civil-car-b-top', 'civil-car-c-top', 'civil-car-a-top', 'civil-car-b-top'];
-const objects = [{ id: 10, name: 'spawn-depot', type: 'spawn', x: px(depot.x) + 32, y: px(depot.y) + 32, width: 0, height: 0, point: true, rotation: 0 }];
-longWays.slice(0, 5).forEach((r, i) => {
+const routes = longWays.slice(0, 6).map((r, i) => {
   const pts = r.pts.map((p) => ({ x: Math.max(1, Math.min(W - 1, p.x)), y: Math.max(1, Math.min(H - 1, p.y)) }));
   const loop = [...pts, ...pts.slice(1, -1).reverse()];
-  const [o] = loop;
-  objects.push({
-    id: 11 + i, name: `route-${r.name || r.way.id}`, type: 'route', x: px(o.x), y: px(o.y), width: 0, height: 0, rotation: 0,
-    polygon: loop.map((p) => ({ x: px(p.x - o.x), y: px(p.y - o.y) })),
-    properties: [{ name: 'sprite', type: 'string', value: sprites[i] }, { name: 'speed', type: 'int', value: 110 + i * 12 }],
-  });
+  return { name: r.name || String(r.way.id), sprite: sprites[i % sprites.length], speed: 110 + (i % 3) * 12, points: loop.map((p) => [mpx(p.x), mpx(p.y)]) };
 });
 
-// ---------------------------------------------------------------- 6. Schreiben
-const layer = (lid, name, d) => ({ id: lid, name, type: 'tilelayer', width: W, height: H, x: 0, y: 0, opacity: 1, visible: true, data: d });
-const collidingTiles = ['wall-a', 'wall-b', 'roof', 'roof-blue', 'roof-red', 'fence', 'tree', 'water', 'construction', 'depot-wall'];
-const map = {
-  type: 'map', version: '1.10', tiledversion: '1.10.2', orientation: 'orthogonal', renderorder: 'right-down',
-  width: W, height: H, tilewidth: T, tileheight: T, infinite: false, nextlayerid: 6, nextobjectid: 20,
-  properties: [{ name: 'source', type: 'string', value: `OpenStreetMap, ${data.address}, Radius ${radiusM} m, ${METERS_PER_TILE} m/Tile` }],
-  tilesets: [{
-    firstgid: 1, name: 'city-tileset', image: '../tiles/city-tileset.png', imagewidth: 512, imageheight: 192,
-    tilewidth: T, tileheight: T, tilecount: TILES.length, columns: 8, margin: 0, spacing: 0,
-    tiles: TILES.map((name, i) => ({ id: i, type: name, properties: collidingTiles.includes(name) ? [{ name: 'collides', type: 'bool', value: true }] : [] })),
-  }],
-  layers: [
-    layer(1, 'Boden', ground),
-    layer(2, 'Markierung', marks),
-    layer(3, 'Gebaeude', buildings),
-    { id: 4, name: 'Objekte', type: 'objectgroup', x: 0, y: 0, opacity: 1, visible: true, draworder: 'topdown', objects },
-    { id: 5, name: 'Zonen', type: 'objectgroup', x: 0, y: 0, opacity: 1, visible: true, draworder: 'topdown', objects: zones },
-  ],
+// ---------------------------------------------------------------- 6. Vektor-Karte schreiben
+const P = JSON.parse(fs.readFileSync(new URL('../src/config/palette.json', import.meta.url), 'utf8'));
+const toPx = (pts) => pts.map((p) => [mpx(p.x), mpx(p.y)]);
+const simplify = (pts, tol = 0.15) => {
+  // Douglas-Peucker in Tile-Einheiten, entfernt Zwischenpunkte auf fast geraden Strecken
+  if (pts.length < 3) return pts;
+  const dp = (a, b) => {
+    let maxD = 0; let idx = -1;
+    const p0 = pts[a]; const p1 = pts[b];
+    for (let i = a + 1; i < b; i++) {
+      const p = pts[i];
+      const l2 = (p1.x - p0.x) ** 2 + (p1.y - p0.y) ** 2 || 1;
+      const t = Math.max(0, Math.min(1, ((p.x - p0.x) * (p1.x - p0.x) + (p.y - p0.y) * (p1.y - p0.y)) / l2));
+      const d = Math.hypot(p0.x + (p1.x - p0.x) * t - p.x, p0.y + (p1.y - p0.y) * t - p.y);
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD > tol && idx > 0) return [...dp(a, idx).slice(0, -1), ...dp(idx, b)];
+    return [pts[a], pts[b]];
+  };
+  return dp(0, pts.length - 1);
+};
+const AREA_KIND = (t) => {
+  if (t.natural === 'water' || t.landuse === 'reservoir') return 'water';
+  if (t.landuse === 'forest' || t.natural === 'wood') return 'forest';
+  if (t.landuse === 'farmland' || t.landuse === 'farmyard') return 'field';
+  if (t.landuse === 'grass' || t.landuse === 'meadow' || t.leisure === 'park' || t.leisure === 'garden' || t.natural === 'grassland') return 'park';
+  if (t.leisure === 'pitch' || t.leisure === 'playground' || t.landuse === 'industrial' || t.landuse === 'retail' || t.landuse === 'commercial' || t.amenity === 'parking') return 'gravel';
+  if (t.natural === 'scrub') return 'scrub';
+  return null;
+};
+const areas = [];
+for (const w of ways) {
+  const kind = AREA_KIND(w.tags ?? {});
+  if (!kind) continue;
+  const pts = simplify(geom(w));
+  if (pts.length >= 3) areas.push({ kind, poly: toPx(pts) });
+}
+const waterways = ways.filter((w) => ['river', 'stream', 'canal'].includes(w.tags?.waterway)).map((w) => ({ width: (w.tags.waterway === 'river' ? 8 : 3) * PX_PER_M, points: toPx(simplify(geom(w))) }));
+const roads = roadWays.map((r) => ({ cls: r.cls, width: r.width * METERS_PER_TILE * PX_PER_M, name: r.name, points: toPx(simplify(r.pts)) }));
+const paths = ways.filter((w) => PATH_TYPES.has(w.tags?.highway)).map((w) => ({ points: toPx(simplify(geom(w))) }));
+const homeId = (() => { const bw = ways.filter((w) => w.tags?.building); const d2 = (w) => { const p = geom(w); const cx = p.reduce((a, q) => a + q.x, 0) / p.length; const cy = p.reduce((a, q) => a + q.y, 0) / p.length; return (cx - centerTile.x) ** 2 + (cy - centerTile.y) ** 2; }; return bw.sort((a, b) => d2(a) - d2(b))[0]?.id; })();
+const buildingsOut = ways.filter((w) => w.tags?.building).map((w) => ({ roof: w.id === homeId ? 'depot' : ['roof', 'roof-red', 'roof'][hash(w.id) % 3], poly: toPx(simplify(geom(w), 0.1)) })).filter((b) => b.poly.length >= 3);
+const railways = ways.filter((w) => w.tags?.railway === 'rail').map((w) => ({ points: toPx(simplify(geom(w))) }));
+
+const cityMap = {
+  source: `OpenStreetMap, ${data.address}, Radius ${radiusM} m`,
+  pxPerMeter: PX_PER_M,
+  width: mpx(W),
+  height: mpx(H),
+  spawn: { x: mpx(depot.x + 0.5), y: mpx(depot.y + 0.5), heading: depotHeading },
+  zones,
+  routes,
+  areas,
+  waterways,
+  roads,
+  paths,
+  railways,
+  buildings: buildingsOut,
+  closure: towardA ? { x: mpx(towardA.x + 0.5), y: mpx(towardA.y + 0.5), heading: heading(towardA), width: 5 * PX_PER_M * 3 } : null,
+  overview: { image: 'maps/city-overview.png', metersPerPixel: METERS_PER_TILE },
 };
 fs.mkdirSync('assets/maps', { recursive: true });
-fs.writeFileSync('assets/maps/city.tmj', JSON.stringify(map));
-console.log(`geschrieben: assets/maps/city.tmj ${W}x${H} Tiles, ${roadWays.length} Straßen, Unterkunft bei Tile ${depot.x}/${depot.y}, Einsätze bei ${missionA.x}/${missionA.y} und ${missionB.x}/${missionB.y}`);
+fs.writeFileSync('assets/maps/city.json', JSON.stringify(cityMap));
+
+// Übersichtskarte: 1 Pixel pro Tile (4 m) aus der Tile-Rasterung
+{
+  const { Canvas } = await import('./png.mjs');
+  const col = { grass: P.olive, 'grass-alt': P.oliveLight, road: P.asphaltLight, 'road-line-h': P.asphaltLight, 'road-line-v': P.asphaltLight, sidewalk: P.concrete, 'wall-a': P.brownLight, 'wall-b': P.tan, roof: P.grayLight, fence: P.brownLight, tree: P.green, water: P.water, construction: P.red, 'depot-floor': P.grayLight, 'depot-wall': P.thwBlueLight, field: P.brownLight, 'road-edge-h': P.gray, 'road-edge-v': P.gray, 'roof-blue': P.thwBlueLight, 'roof-red': P.red, flower: P.oliveLight, gravel: P.concrete, marker: P.yellow, empty: P.black };
+  const c = new Canvas(W, H, P.olive);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const v = buildings[y * W + x] || ground[y * W + x];
+    c.set(x, y, col[TILES[v - 1]] ?? P.olive);
+  }
+  c.save('assets/maps/city-overview.png');
+}
+try { fs.unlinkSync('assets/maps/city.tmj'); } catch { /* war schon weg */ }
+const kb = Math.round(fs.statSync('assets/maps/city.json').size / 1024);
+console.log(`geschrieben: assets/maps/city.json (${kb} KB): ${roads.length} Straßen, ${buildingsOut.length} Gebäude, ${areas.length} Flächen; Unterkunft ${zones[0].street}, Einsätze ${zones[1].street} / ${zones[2].street}`);

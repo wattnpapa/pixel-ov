@@ -11,6 +11,8 @@ import {
 import { continueFromState } from '../systems/flow';
 import { Sound } from '../systems/Sound';
 import { SideSceneBase } from './SideSceneBase';
+import { addressFor } from './DriveScene';
+import type { CityMap } from '../systems/MapRenderer';
 
 const GROUND_Y = 600;
 
@@ -136,10 +138,11 @@ export class HallScene extends SideSceneBase {
     const s = state();
     if (s.progress) {
       const alarm = CAMPAIGN[s.progress.alarmIndex];
+      const address = addressFor(this.cache.json.get('city') as CityMap, alarm.missionId, alarm.address);
       if (s.progress.reinforcement) {
-        await this.dialog.say(`Einsatz läuft: ${alarm.kind}, ${alarm.address}. Das erste Fahrzeug hatte nicht das richtige Gerät. Anderes Fahrzeug wählen und zurück zur Einsatzstelle.`);
+        await this.dialog.say(`Einsatz läuft: ${alarm.kind}, ${address}. Das erste Fahrzeug hatte nicht das richtige Gerät. Anderes Fahrzeug wählen und zurück zur Einsatzstelle.`);
       } else {
-        await this.dialog.say(`Auftrag bestätigt: ${alarm.kind}, ${alarm.address}. Fahrzeug wählen, dann durchs Tor.`);
+        await this.dialog.say(`Auftrag bestätigt: ${alarm.kind}, ${address}. Fahrzeug wählen, dann durchs Tor.`);
       }
       return;
     }
@@ -149,7 +152,8 @@ export class HallScene extends SideSceneBase {
       return;
     }
     Sound.play('alarm');
-    const choice = await this.dialog.choose(`ALARM: ${alarm.kind}\n${alarm.address}\n${alarm.brief}`, ['Bestätigen', 'Später']);
+    const address = addressFor(this.cache.json.get('city') as CityMap, alarm.missionId, alarm.address);
+    const choice = await this.dialog.choose(`ALARM: ${alarm.kind}\n${address}\n${alarm.brief}`, ['Bestätigen', 'Später']);
     if (choice === 0) {
       acceptAlarm();
       this.dialog.toast('Auftrag angenommen. Welches Fahrzeug?', 2000);

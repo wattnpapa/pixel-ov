@@ -29,7 +29,8 @@ export class BootScene extends Phaser.Scene {
     this.load.json('font-meta', 'fonts/pixel-font.json');
     this.load.image('font-image', 'fonts/pixel-font.png');
     this.load.image('city-tileset', 'tiles/city-tileset.png');
-    this.load.tilemapTiledJSON('city', 'maps/city.tmj');
+    this.load.json('city', 'maps/city.json');
+    this.load.image('city-overview', 'maps/city-overview.png');
     for (const key of ['vehicle-mtw-top', 'vehicle-gkw-top', 'civil-car-a-top', 'civil-car-b-top', 'civil-car-c-top', 'vehicle-mtw-side', 'vehicle-gkw-side']) {
       this.load.image(key, `sprites/${key}.png`);
     }
@@ -82,6 +83,6 @@ export class BootScene extends Phaser.Scene {
         this.scene.start(SCENES.hall);
       });
     });
-    this.add.bitmapText(GAME_WIDTH / 2, GAME_HEIGHT - 88, FONT, 'Maus / Touch: klicken. Fahren: Pfeile oder WASD, Leertaste = Sondersignal').setOrigin(0.5, 0).setTint(PALETTE.gray).setMaxWidth(GAME_WIDTH - 40).setCenterAlign();
+    this.add.bitmapText(GAME_WIDTH / 2, GAME_HEIGHT - 88, FONT, 'Maus / Touch: klicken. Fahren: Pfeile oder WASD, Leertaste = Sondersignal, M = Karte, F = Vollbild').setOrigin(0.5, 0).setTint(PALETTE.gray).setMaxWidth(GAME_WIDTH - 40).setCenterAlign();
   }
 }

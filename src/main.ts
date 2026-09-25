@@ -8,18 +8,6 @@ import { SideScene } from './scenes/SideScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { SummaryScene } from './scenes/SummaryScene';
 
-/**
- * Größter ganzzahliger Zoom, der ins Fenster passt. Auf kleinen Bildschirmen
- * (Handy) ist das weniger als 1: dann wird passend verkleinert, sonst ist
- * die 640x360-Fläche größer als der Bildschirm.
- */
-function fittingZoom(): number {
-  const vw = window.visualViewport?.width ?? window.innerWidth;
-  const vh = window.visualViewport?.height ?? window.innerHeight;
-  const raw = Math.min(vw / GAME_WIDTH, vh / GAME_HEIGHT);
-  return raw >= 1 ? Math.floor(raw) : Math.max(0.25, raw);
-}
-
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
@@ -30,9 +18,11 @@ const game = new Phaser.Game({
   roundPixels: true,
   antialias: false,
   scale: {
-    mode: Phaser.Scale.NONE,
+    // Füllt das Fenster bei festem 16:9-Seitenverhältnis; auf Handys wird verkleinert.
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    zoom: fittingZoom(),
+    width: GAME_WIDTH,
+    height: GAME_HEIGHT,
   },
   physics: {
     default: 'arcade',
@@ -42,10 +32,7 @@ const game = new Phaser.Game({
   scene: [BootScene, HallScene, DriveScene, DriveUiScene, SideScene, GameOverScene, SummaryScene],
 });
 
-const applyZoom = () => game.scale.setZoom(fittingZoom());
-window.addEventListener('resize', applyZoom);
-window.addEventListener('orientationchange', () => setTimeout(applyZoom, 100));
-window.visualViewport?.addEventListener('resize', applyZoom);
+window.addEventListener('orientationchange', () => setTimeout(() => game.scale.refresh(), 100));
 
 // Im Dev-Modus für Tests und Debugging erreichbar.
 if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;

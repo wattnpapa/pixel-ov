@@ -25,13 +25,13 @@ http://localhost:5173/?scene=drive&vehicle=gkw
 
 Alarm am Monitor bestätigen, Fahrzeug wählen (MTW: wendig, nur Absperrmaterial; GKW: träge, volle Ausrüstung), durchs Tor, auf der Stadtkarte zur Einsatzstelle fahren und dort anhalten, Aufgaben abarbeiten, Rückfahrt, Nachbereitung an der Werkbank. Nach drei Einsätzen kommt der Endbildschirm.
 
-Steuerung: Maus oder Touch in den Seitenansichten, Pfeiltasten oder WASD im Fahrmodus, Leertaste für das Sondersignal, Ziffern 1 bis 9 für Dialogoptionen, Enter oder Klick zum Weiterblättern. Auf Touch-Geräten erscheinen im Fahrmodus virtuelle Tasten.
+Steuerung: Maus oder Touch in den Seitenansichten, Pfeiltasten oder WASD im Fahrmodus, Leertaste für das Sondersignal, M für die große Übersichtskarte, F für Vollbild, Ziffern 1 bis 9 für Dialogoptionen, Enter oder Klick zum Weiterblättern. Auf Touch-Geräten erscheinen im Fahrmodus virtuelle Tasten.
 
 Drei Fehlerklassen: Sicherheitsverstoß (Game Over, Einsatz beginnt vor Ort neu), Ablauffehler (Zeitstrafe), Ausstattungsfehler (Nachalarmierung des anderen Fahrzeugs, Zeit läuft weiter). Wer die Nachbereitung auslässt, hat beim nächsten Einsatz ein Gerät, das nicht anspringt.
 
 ## Neue Einsatzstellen
 
-Eine Einsatzstelle ist eine `MissionDef` in `src/config/missions/`: Hintergrund, Hotspots, Props und eine Aufgabenliste mit Voraussetzungen (`requires`), Sicherheitsregeln (`safety`), Reihenfolgeregeln (`softOrder`), benötigter Ausrüstung (`equipment`), Auswahl-Dialogen (`choice`) und Reihenfolge-Minispielen (`minigame`). Der Automat in `src/systems/TaskMachine.ts` wertet das aus, die Szene `SideScene` braucht keine Änderung. Neue Einsatzstellen brauchen zusätzlich eine Zone in `assets/maps/city.tmj` (Objektlayer `Zonen`, Eigenschaft `mission`) und einen Eintrag in `src/config/campaign.ts`.
+Eine Einsatzstelle ist eine `MissionDef` in `src/config/missions/`: Hintergrund, Hotspots, Props und eine Aufgabenliste mit Voraussetzungen (`requires`), Sicherheitsregeln (`safety`), Reihenfolgeregeln (`softOrder`), benötigter Ausrüstung (`equipment`), Auswahl-Dialogen (`choice`) und Reihenfolge-Minispielen (`minigame`). Der Automat in `src/systems/TaskMachine.ts` wertet das aus, die Szene `SideScene` braucht keine Änderung. Neue Einsatzstellen brauchen zusätzlich eine Zone in `assets/maps/city.json` (Feld `zones`, `kind: mission` mit der Missions-ID; der Generator in `tools/gen-map-osm.mjs` legt sie an) und einen Eintrag in `src/config/campaign.ts`.
 
 ## Veröffentlichen (GitHub Pages)
 
@@ -42,23 +42,24 @@ Der Workflow `.github/workflows/deploy-pages.yml` baut bei jedem Push auf `main`
 Alle Grafiken liegen in `assets/` (Vite `publicDir`) und werden über feste Pfade geladen. Die aktuellen Dateien sind generierte Platzhalter. Jede Datei kann durch eine gepixelte Version gleicher Größe ersetzt werden, ohne Code anzufassen.
 
 ```
-node tools/gen-assets.mjs   # Platzhalter-Sprites, Hintergründe, Tileset, Pixelfont neu erzeugen
-node tools/gen-map.mjs      # Schachbrett-Stadtkarte assets/maps/city.tmj neu erzeugen (Tiled-Format)
+node tools/gen-assets.mjs   # Platzhalter-Sprites, Hintergründe, Tileset (Texturen für die Karte), Pixelfont neu erzeugen
 ```
 
 ### Echte Karte aus OpenStreetMap (Oldenburg, Artillerieweg 59)
 
 ```
 node tools/fetch-osm.mjs                 # holt Straßen, Gebäude, Wasser, Grünflächen im 1-km-Umkreis nach data/osm/
-node tools/gen-map-osm.mjs               # rastert daraus assets/maps/city.tmj (4 m pro Tile = 64 px, 500 x 500 Tiles)
+node tools/gen-map-osm.mjs               # schreibt daraus assets/maps/city.json (Vektorkarte) und city-overview.png
 ```
 
-Der Abruf braucht Netzzugang zu `nominatim.openstreetmap.org` (Adresse) und `overpass-api.de` (Daten). Die heruntergeladene Datei liegt eingecheckt unter `data/osm/oldenburg-artillerieweg.json` (Stand siehe `fetchedAt` darin), damit der Generator ohne Netz läuft. Die aktuelle `assets/maps/city.tmj` ist daraus erzeugt; `tools/gen-map.mjs` liefert weiter die kleine Schachbrett-Testkarte. Unterkunft, beide Einsatzzonen, die Sperrung und die Zivilrouten platziert der Generator automatisch auf dem Straßennetz: Unterkunft am nächsten Wohnstraßen-Tile zur Adresse (das Gebäude an der Adresse wird als THW-Halle eingefärbt), Einsätze 550 bis 850 m entfernt in verschiedenen Richtungen, Sperrung auf dem Weg zum ersten Einsatz. Autobahn und Zufahrten sind befahrbar, bekommen aber weder Zonen noch Gehwege.
+Der Abruf braucht Netzzugang zu `nominatim.openstreetmap.org` (Adresse) und `overpass-api.de` (Daten). Die heruntergeladene Datei liegt eingecheckt unter `data/osm/oldenburg-artillerieweg.json` (Stand siehe `fetchedAt` darin), damit der Generator ohne Netz läuft.
+
+Die Karte ist keine Tilemap mehr, sondern Vektorgeometrie in Pixeln (16 px pro Meter): Straßen als Polylinien mit Breite nach Klasse, Gebäude und Flächen als Polygone. `src/systems/MapRenderer.ts` zeichnet daraus zur Laufzeit 64-m-Kacheln in Canvas-Texturen rund um die Kamera (mit den Texturen aus dem Tileset als Muster) und hält ein Kollisionsraster in 50-cm-Zellen für Gebäude, Wasser, Wald und die Sperrung. Die Übersichtskarte (M) ist ein 500 x 500-Bild mit 4 m pro Pixel. Unterkunft, beide Einsatzzonen, die Sperrung und die Zivilrouten platziert der Generator automatisch auf dem Straßennetz: Unterkunft am nächsten Wohnstraßenpunkt zur Adresse (das Gebäude an der Adresse wird als THW-Halle gezeichnet), Einsatzadressen kommen aus den Straßennamen an den Zonen, Einsätze 550 bis 850 m entfernt in verschiedenen Richtungen, Sperrung auf dem Weg zum ersten Einsatz. Autobahn und Zufahrten sind befahrbar, bekommen aber weder Zonen noch Gehwege.
 
 Raster und Auflösung:
 
-- Szenen: 1280 x 720 px, Integer-Skalierung aufs Fenster (auf kleineren Bildschirmen passend verkleinert); Fahrmodus zeigt 20 x 11 Tiles bei Zoom 1
-- Tiles: 64 x 64 px, Tileset `assets/tiles/city-tileset.png` (Reihenfolge in `tools/tiles.mjs`); Draufsicht-Fahrzeuge 80 x 40 (MTW), 112 x 48 (GKW), 72 x 36 (Zivil)
+- Szenen: 1280 x 720 px, füllen das Fenster bei 16:9 (Phaser FIT), F schaltet Vollbild; Fahrmodus zeigt 80 x 45 m
+- Texturen: 64 x 64 px im Tileset `assets/tiles/city-tileset.png` (Reihenfolge in `tools/tiles.mjs`), als Muster für Gras, Asphalt, Gehweg, Dächer, Wasser, Kies, Feld; Draufsicht-Fahrzeuge 80 x 40 (MTW), 112 x 48 (GKW), 72 x 36 (Zivil) bei 16 px pro Meter
 - Palette: `src/config/palette.json`, 36 Farben
 - Schrift: 5 x 7 Glyphen, gerendert als 20 x 28 px in `assets/fonts/pixel-font.png` mit Zeichenliste in `pixel-font.json`
 - Seitenansicht-Grafiken (Hintergründe 1280 x 720, GKW 448 x 192, MTW 256 x 144, Helfer 48 x 96) sind im Generator im 640 x 360-Raster notiert und werden verdoppelt gerendert
