@@ -51,6 +51,13 @@ export class Canvas {
   rect(x, y, w, h, hex) {
     for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) this.set(xx, yy, hex);
   }
+  /** Gefüllter Kreis. */
+  circle(cx, cy, r, hex) {
+    for (let dy = -r; dy <= r; dy++) {
+      const half = Math.floor(Math.sqrt(r * r - dy * dy));
+      this.rect(cx - half, cy + dy, half * 2 + 1, 1, hex);
+    }
+  }
   outline(x, y, w, h, hex) {
     this.rect(x, y, w, 1, hex);
     this.rect(x, y + h - 1, w, 1, hex);

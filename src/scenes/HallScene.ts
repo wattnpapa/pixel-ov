@@ -18,13 +18,13 @@ const HOTSPOTS: Record<string, HotspotDef> = {
   monitor: { id: 'monitor', label: 'Alarmmonitor', x: 16, y: 80, w: 88, h: 68, walkX: 80 },
   workbench: { id: 'workbench', label: 'Werkbank', x: 12, y: 220, w: 100, h: 80, walkX: 124 },
   mtw: { id: 'mtw', label: 'MTW', x: 124, y: 212, w: 160, h: 92, walkX: 184 },
-  gkw: { id: 'gkw', label: 'GKW', x: 316, y: 192, w: 224, h: 112, walkX: 300 },
+  gkw: { id: 'gkw', label: 'GKW', x: 316, y: 192, w: 232, h: 112, walkX: 300 },
   gate: { id: 'gate', label: 'Tor', x: 552, y: 80, w: 88, h: 220, walkX: 536 },
 };
 
 const VEHICLE_POS: Record<VehicleId, { x: number; y: number }> = {
   mtw: { x: 140, y: 304 },
-  gkw: { x: 332, y: 304 },
+  gkw: { x: 322, y: 304 },
 };
 
 /** Fahrzeughalle: Alarmmonitor, zwei Stellplätze, Werkbank, Tor. */

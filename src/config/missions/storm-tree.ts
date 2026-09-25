@@ -7,19 +7,19 @@ export const STORM_TREE: MissionDef = {
   background: 'storm-tree-bg',
   groundY: 304,
   vehicleHotspot: 'vehicle',
-  vehiclePos: { x: 446, y: 320 },
+  vehiclePos: { x: 414, y: 320 },
   entryTask: 'exit',
   parTimeMs: 240000,
   reinforcementText: 'Nachalarmierung: zurück zur Unterkunft, GKW holen, wieder anfahren. Die Zeit läuft weiter.',
   hotspots: [
-    { id: 'vehicle', label: 'Einsatzfahrzeug', x: 444, y: 208, w: 196, h: 116, walkX: 432, idleText: 'Das Fahrzeug steht sicher am Bankett.' },
+    { id: 'vehicle', label: 'Einsatzfahrzeug', x: 412, y: 208, w: 228, h: 116, walkX: 400, idleText: 'Das Fahrzeug steht sicher am Bankett.' },
     { id: 'car', label: 'Wartender PKW', x: 32, y: 236, w: 120, h: 64, walkX: 160, idleText: 'Der Fahrer hört Radio.' },
-    { id: 'tree', label: 'Umgestürzter Baum', x: 172, y: 212, w: 236, h: 84, walkX: 300, idleText: 'Der Stamm liegt quer. Ohne Säge bewegt sich hier nichts.' },
+    { id: 'tree', label: 'Umgestürzter Baum', x: 172, y: 212, w: 196, h: 84, walkX: 300, idleText: 'Der Stamm liegt quer. Ohne Säge bewegt sich hier nichts.' },
     { id: 'log1', label: 'Stammteil', x: 212, y: 256, w: 60, h: 32, walkX: 242 },
     { id: 'log2', label: 'Stammteil', x: 280, y: 256, w: 60, h: 32, walkX: 310 },
     { id: 'log3', label: 'Stammteil', x: 348, y: 256, w: 60, h: 32, walkX: 378 },
     { id: 'road-left', label: 'Straße, linke Seite', x: 0, y: 240, w: 32, h: 88, walkX: 28, idleText: 'Freie Sicht bis zur Kurve.' },
-    { id: 'road-right', label: 'Straße, rechte Seite', x: 408, y: 240, w: 36, h: 88, walkX: 424, idleText: 'Hinter dem Fahrzeug kommt die Kuppe.' },
+    { id: 'road-right', label: 'Straße, rechte Seite', x: 370, y: 240, w: 40, h: 88, walkX: 388, idleText: 'Hinter dem Fahrzeug kommt die Kuppe.' },
   ],
   props: [
     { id: 'car', x: 40, y: 260, w: 100, h: 36, color: 'red', label: 'PKW' },
@@ -31,7 +31,7 @@ export const STORM_TREE: MissionDef = {
     { id: 'log3', x: 352, y: 264, w: 52, h: 24, color: 'brownLight', hidden: true },
     { id: 'triangle-left', x: 4, y: 280, w: 16, h: 16, color: 'red', hidden: true },
     { id: 'cone-left', x: 20, y: 292, w: 10, h: 16, color: 'orange', hidden: true },
-    { id: 'cone-right', x: 420, y: 292, w: 10, h: 16, color: 'orange', hidden: true },
+    { id: 'cone-right', x: 386, y: 292, w: 10, h: 16, color: 'orange', hidden: true },
   ],
   tasks: [
     {

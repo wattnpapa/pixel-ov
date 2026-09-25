@@ -97,40 +97,102 @@ function stamp(c, x, y, text, color, fs = 1) {
     g.forEach((row, ry) => [...row].forEach((px, rx) => { if (px === '#') c.rect(x + (i * (GLYPH_W + 1) + rx) * fs, y + ry * fs, fs, fs, color); }));
   });
 }
-function sideVehicle(file, w, h, cabW, label) {
+/** Rad mit Reifen, Felge, Nabe und Profil. */
+function wheel(c, cx, cy, r) {
+  c.circle(cx, cy, r, P.dark);
+  for (let a = 0; a < 8; a++) { const px = cx + Math.round(Math.cos(a * 0.785) * (r - 1)); const py = cy + Math.round(Math.sin(a * 0.785) * (r - 1)); c.rect(px, py, 2, 2, P.grayDark); }
+  c.circle(cx, cy, Math.round(r * 0.55), P.gray);
+  c.circle(cx, cy, Math.round(r * 0.25), P.grayDark);
+  c.rect(cx - 1, cy - 1, 2, 2, P.grayLight);
+}
+
+/** GKW: Doppelkabine, Kofferaufbau mit Rollläden, weiße Stoßstange. 224x96, Front links. */
+function gkwSide(file) {
+  const w = 224;
+  const h = 96;
   const c = new Canvas(w, h);
-  const bodyTop = 8;
-  const bodyH = h - 20;
-  // Aufbau
-  c.rect(cabW, bodyTop, w - cabW - 2, bodyH, P.thwBlue);
-  c.outline(cabW, bodyTop, w - cabW - 2, bodyH, P.thwBlueDark);
-  c.rect(cabW + 2, bodyTop + 2, w - cabW - 6, 3, P.thwBlueLight); // Kante oben
-  // Kabine
-  c.rect(2, bodyTop + 8, cabW, bodyH - 8, P.thwBlue);
-  c.outline(2, bodyTop + 8, cabW, bodyH - 8, P.thwBlueDark);
-  c.rect(6, bodyTop + 12, cabW - 10, 16, P.skyLight); // Fenster
-  c.rect(6, bodyTop + 12, cabW - 10, 3, P.sky);
-  c.rect(cabW - 4, bodyTop + 10, 2, bodyH - 14, P.thwBlueDark); // Tür
-  c.rect(cabW - 10, bodyTop + 30, 5, 2, P.grayLight); // Türgriff
-  c.rect(2, bodyTop + 2, 12, 6, P.thwBlueLight); // Blaulicht
-  c.rect(4, bodyTop, 8, 3, P.thwBlueLight);
-  c.rect(cabW + 8, bodyTop + 6, 14, 6, P.thwBlueLight); // Blaulicht Aufbau
-  // Reflexstreifen und Schriftzug
-  c.rect(cabW + 4, bodyTop + bodyH - 10, w - cabW - 10, 5, P.yellow);
-  c.rect(2, bodyTop + bodyH - 10, cabW, 5, P.yellow);
-  stamp(c, cabW + 10, bodyTop + 12, 'THW', P.white, 2);
-  stamp(c, cabW + 10, bodyTop + 30, label, P.white, 1);
-  // Räder
-  const wheel = (x) => { c.rect(x, h - 16, 20, 16, P.dark); c.rect(x + 6, h - 10, 8, 6, P.gray); c.rect(x + 8, h - 8, 4, 2, P.grayLight); };
-  wheel(8); wheel(w - 32);
-  if (w > 150) wheel(w - 56);
-  // Stoßstange und Scheinwerfer
-  c.rect(0, h - 22, 6, 8, P.grayLight);
-  c.rect(1, h - 20, 3, 3, P.yellow);
+  const B = P.thwBlue, BD = P.thwBlueDark, BL = P.thwBlueLight, W = P.white, S = P.grayLight, SD = P.gray, D = P.dark;
+  // Rahmen
+  c.rect(10, 70, 208, 8, D);
+  // Kofferaufbau
+  c.rect(96, 14, 124, 58, B);
+  c.outline(96, 14, 124, 58, BD);
+  c.rect(98, 16, 120, 3, BL);
+  stamp(c, 97, 21, 'Technisches Hilfswerk', W, 1);
+  for (const x of [102, 142, 182]) {
+    c.rect(x, 30, 34, 38, S);
+    c.outline(x, 30, 34, 38, SD);
+    for (let y = 34; y < 66; y += 4) c.rect(x + 1, y, 32, 1, SD);
+    c.rect(x + 12, 63, 10, 3, D);
+  }
+  c.rect(98, 69, 120, 2, W);
+  c.rect(216, 36, 4, 34, W);
+  for (let y = 36; y < 70; y += 8) c.rect(216, y, 4, 4, P.red);
+  c.rect(200, 8, 14, 6, BL); c.rect(203, 6, 8, 2, BL);
+  // Fahrerhaus (Doppelkabine)
+  c.rect(12, 22, 82, 50, B);
+  c.rect(6, 34, 8, 38, B);
+  c.rect(8, 28, 6, 6, B);
+  c.rect(10, 24, 4, 4, B);
+  c.outline(12, 22, 82, 50, BD);
+  c.rect(12, 22, 82, 3, BL);
+  c.rect(14, 28, 6, 18, P.skyLight); c.rect(10, 32, 4, 14, P.skyLight); c.rect(14, 28, 6, 4, P.sky); // Windschutzscheibe
+  c.rect(24, 28, 26, 18, P.skyLight); c.outline(24, 28, 26, 18, BD); c.rect(25, 29, 24, 4, P.sky); // Fenster Tür 1
+  c.rect(56, 28, 30, 18, P.skyLight); c.outline(56, 28, 30, 18, BD); c.rect(57, 29, 28, 4, P.sky); // Fenster Tür 2
+  c.rect(52, 26, 1, 44, BD); c.rect(88, 26, 1, 44, BD); // Türfugen
+  c.rect(44, 50, 6, 2, S); c.rect(80, 50, 6, 2, S); // Türgriffe
+  stamp(c, 60, 48, 'THW', W, 1);
+  c.rect(6, 56, 88, 4, W); // Weißer Streifen
+  // Blaulichter und Dachbalken
+  c.rect(30, 18, 38, 4, S);
+  c.rect(16, 16, 12, 6, BL); c.rect(18, 14, 8, 2, BL);
+  c.rect(70, 16, 12, 6, BL); c.rect(72, 14, 8, 2, BL);
+  // Spiegel, Kühlergrill, Stoßstange
+  c.rect(2, 30, 4, 12, D); c.rect(2, 30, 4, 2, S);
+  c.rect(6, 46, 8, 10, D); for (let y = 48; y < 56; y += 3) c.rect(7, y, 6, 1, SD);
+  stamp(c, 3, 40, 'T', W, 1);
+  c.rect(0, 62, 16, 12, W); c.outline(0, 62, 16, 12, S);
+  c.rect(2, 65, 5, 4, P.yellow); c.rect(9, 65, 5, 4, P.yellow);
+  c.rect(2, 70, 12, 2, P.orange);
+  // Trittstufe
+  c.rect(90, 62, 10, 12, S); c.noise(90, 62, 10, 12, SD, 0.3, 5);
+  // Radkästen und Räder
+  c.rect(26, 60, 44, 14, W); c.rect(132, 60, 44, 14, W);
+  c.rect(28, 62, 40, 12, D); c.rect(134, 62, 40, 12, D);
+  wheel(c, 48, 78, 17);
+  wheel(c, 154, 78, 17);
   c.save(file);
 }
-sideVehicle('assets/sprites/vehicle-mtw-side.png', 128, 72, 36, 'MTW');
-sideVehicle('assets/sprites/vehicle-gkw-side.png', 192, 96, 44, 'GKW 1');
+
+/** MTW: Kleinbus, 128x72, Front links. */
+function mtwSide(file) {
+  const w = 128;
+  const h = 72;
+  const c = new Canvas(w, h);
+  const B = P.thwBlue, BD = P.thwBlueDark, BL = P.thwBlueLight, W = P.white, S = P.grayLight, D = P.dark;
+  c.rect(8, 20, 116, 42, B);
+  c.rect(4, 28, 6, 34, B); c.rect(6, 24, 4, 4, B);
+  c.outline(8, 20, 116, 42, BD);
+  c.rect(10, 22, 112, 3, BL);
+  c.rect(8, 26, 6, 16, P.skyLight); c.rect(5, 30, 4, 12, P.skyLight); // Windschutzscheibe
+  for (const [x, ww] of [[18, 26], [48, 30], [82, 34]]) { c.rect(x, 26, ww, 16, P.skyLight); c.outline(x, 26, ww, 16, BD); c.rect(x + 1, 27, ww - 2, 3, P.sky); }
+  c.rect(46, 24, 1, 34, BD); c.rect(80, 24, 1, 34, BD); c.rect(118, 24, 1, 34, BD);
+  c.rect(40, 46, 6, 2, S); c.rect(74, 46, 6, 2, S);
+  c.rect(4, 50, 120, 4, W);
+  stamp(c, 52, 55, 'THW', W, 1);
+  c.rect(24, 14, 10, 6, BL); c.rect(26, 12, 6, 2, BL);
+  c.rect(90, 14, 10, 6, BL); c.rect(92, 12, 6, 2, BL);
+  c.rect(1, 28, 3, 10, D);
+  c.rect(0, 54, 12, 8, W); c.outline(0, 54, 12, 8, S);
+  c.rect(2, 56, 4, 3, P.yellow); c.rect(7, 56, 4, 3, P.yellow);
+  c.rect(120, 36, 4, 24, W); for (let y = 36; y < 60; y += 6) c.rect(120, y, 4, 3, P.red);
+  c.rect(14, 52, 28, 10, D); c.rect(88, 52, 28, 10, D);
+  wheel(c, 28, 60, 11);
+  wheel(c, 102, 60, 11);
+  c.save(file);
+}
+mtwSide('assets/sprites/vehicle-mtw-side.png');
+gkwSide('assets/sprites/vehicle-gkw-side.png');
 
 // ---------------------------------------------------------------- Helfer (Seitenansicht, 24x48, 2 Frames: stehen / gehen)
 {
@@ -255,7 +317,7 @@ function window_(c, x, y, w, h) {
   for (let s = 0; s < 5; s++) c.rect(56 + s * 12, 284 + s * 14, 100 - s * 12, 6, P.gray);
   c.rect(44, 272, 128, 4, P.grayLight); // Schachtrand
   // Gully
-  c.rect(400, 316, 32, 12, P.dark); for (let i = 0; i < 32; i += 8) c.rect(400 + i, 316, 4, 12, P.gray);
+  c.rect(360, 316, 32, 12, P.dark); for (let i = 0; i < 32; i += 8) c.rect(360 + i, 316, 4, 12, P.gray);
   // Sicherungskasten neben der Tür
   c.rect(264, 208, 24, 32, P.grayLight); c.outline(264, 208, 24, 32, P.dark); c.rect(270, 216, 12, 4, P.red); c.rect(270, 224, 12, 2, P.dark);
   // Straßenlaterne rechts
