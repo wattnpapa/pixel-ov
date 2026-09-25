@@ -316,7 +316,12 @@ for (const w of ways) {
   if (pts.length >= 3) areas.push({ kind, poly: toPx(pts) });
 }
 const waterways = ways.filter((w) => ['river', 'stream', 'canal'].includes(w.tags?.waterway)).map((w) => ({ width: (w.tags.waterway === 'river' ? 8 : 3) * PX_PER_M, points: toPx(simplify(geom(w))) }));
-const roads = roadWays.map((r) => ({ cls: r.cls, width: r.width * METERS_PER_TILE * PX_PER_M, name: r.name, points: toPx(simplify(r.pts)) }));
+// Reale Fahrbahnbreiten in Metern (OSM-Ways sind bei Autobahnen je Richtungsfahrbahn)
+const ROAD_WIDTH_M = {
+  motorway: 11, trunk: 10, primary: 9, secondary: 8, tertiary: 7, unclassified: 6, residential: 6, living_street: 5,
+  service: 4, motorway_link: 6, trunk_link: 6, primary_link: 6, secondary_link: 6, tertiary_link: 6,
+};
+const roads = roadWays.map((r) => ({ cls: r.cls, width: (ROAD_WIDTH_M[r.way.tags.highway] ?? 6) * PX_PER_M, name: r.name, points: toPx(simplify(r.pts)) }));
 const paths = ways.filter((w) => PATH_TYPES.has(w.tags?.highway)).map((w) => ({ points: toPx(simplify(geom(w))) }));
 const homeId = (() => { const bw = ways.filter((w) => w.tags?.building); const d2 = (w) => { const p = geom(w); const cx = p.reduce((a, q) => a + q.x, 0) / p.length; const cy = p.reduce((a, q) => a + q.y, 0) / p.length; return (cx - centerTile.x) ** 2 + (cy - centerTile.y) ** 2; }; return bw.sort((a, b) => d2(a) - d2(b))[0]?.id; })();
 const buildingsOut = ways.filter((w) => w.tags?.building).map((w) => ({ roof: w.id === homeId ? 'depot' : ['roof', 'roof-red', 'roof'][hash(w.id) % 3], poly: toPx(simplify(geom(w), 0.1)) })).filter((b) => b.poly.length >= 3);

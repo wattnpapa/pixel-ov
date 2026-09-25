@@ -77,7 +77,7 @@ export class DriveUiScene extends Phaser.Scene {
     // Unterkunft: blaues Quadrat, Ziel: gelb blinkend, Spieler: weißer Pfeil
     g.fillStyle(PALETTE.thwBlueLight, 1);
     g.fillRect(ox + info.depot.x * sx - 4, oy + info.depot.y * sy - 4, 8, 8);
-    if (Math.floor(this.time.now / 400) % 2 === 0) {
+    if (!this.drive.isFreeDrive() && Math.floor(this.time.now / 400) % 2 === 0) {
       g.fillStyle(PALETTE.yellow, 1);
       g.fillCircle(ox + info.target.x * sx, oy + info.target.y * sy, this.big ? 8 : 5);
     }

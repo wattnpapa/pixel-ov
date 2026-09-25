@@ -71,7 +71,7 @@ export class BootScene extends Phaser.Scene {
     this.add.bitmapText(GAME_WIDTH / 2, 280, FONT, 'Du führst einen THW-Ortsverband.\nDrei Einsätze. Keine Toten. Los.').setOrigin(0.5, 0).setCenterAlign().setTint(PALETTE.grayLight);
 
     const canContinue = hasSave() && load();
-    const options = canContinue ? ['Weiter', 'Neu starten'] : ['Neues Spiel'];
+    const options = canContinue ? ['Weiter', 'Neu starten', 'Freies Fahren'] : ['Neues Spiel', 'Freies Fahren'];
     options.forEach((label, i) => {
       const y = 440 + i * 64;
       const row = this.add.rectangle(GAME_WIDTH / 2, y, 480, 52, PALETTE.thwBlue).setStrokeStyle(4, PALETTE.yellow).setInteractive({ useHandCursor: true });
@@ -79,6 +79,10 @@ export class BootScene extends Phaser.Scene {
       row.on('pointerover', () => row.setFillStyle(PALETTE.thwBlueLight));
       row.on('pointerout', () => row.setFillStyle(PALETTE.thwBlue));
       row.on('pointerdown', () => {
+        if (label === 'Freies Fahren') {
+          this.scene.start(SCENES.drive, { mode: 'free', vehicle: 'gkw' });
+          return;
+        }
         if (label !== 'Weiter') reset();
         this.scene.start(SCENES.hall);
       });

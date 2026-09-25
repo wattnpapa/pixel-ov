@@ -25,6 +25,8 @@ http://localhost:5173/?scene=drive&vehicle=gkw
 
 Alarm am Monitor bestätigen, Fahrzeug wählen (MTW: wendig, nur Absperrmaterial; GKW: träge, volle Ausrüstung), durchs Tor, auf der Stadtkarte zur Einsatzstelle fahren und dort anhalten, Aufgaben abarbeiten, Rückfahrt, Nachbereitung an der Werkbank. Nach drei Einsätzen kommt der Endbildschirm.
 
+Vom Startbildschirm aus gibt es außerdem „Freies Fahren": Stadtkarte ohne Auftrag, Timer und Ziel, V wechselt das Fahrzeug, ESC führt zurück.
+
 Steuerung: Maus oder Touch in den Seitenansichten, Pfeiltasten oder WASD im Fahrmodus, Leertaste für das Sondersignal, M für die große Übersichtskarte, F für Vollbild, Ziffern 1 bis 9 für Dialogoptionen, Enter oder Klick zum Weiterblättern. Auf Touch-Geräten erscheinen im Fahrmodus virtuelle Tasten.
 
 Drei Fehlerklassen: Sicherheitsverstoß (Game Over, Einsatz beginnt vor Ort neu), Ablauffehler (Zeitstrafe), Ausstattungsfehler (Nachalarmierung des anderen Fahrzeugs, Zeit läuft weiter). Wer die Nachbereitung auslässt, hat beim nächsten Einsatz ein Gerät, das nicht anspringt.

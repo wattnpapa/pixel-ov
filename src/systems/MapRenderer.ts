@@ -125,9 +125,35 @@ export class MapRenderer {
     }
   }
 
+  /** Setzt alle Zellen entlang einer Linie mit Breite auf den Wert (Straßen schneiden Wald, Wasser und Gebäude frei). */
+  private strokeCells(pts: Pt[], width: number, value: number): void {
+    const r = width / 2 / CELL;
+    const r2 = r * r;
+    const ri = Math.ceil(r);
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const [ax, ay] = pts[i];
+      const [bx, by] = pts[i + 1];
+      const len = Math.hypot(bx - ax, by - ay);
+      const steps = Math.max(1, Math.ceil(len / (CELL / 2)));
+      for (let s = 0; s <= steps; s++) {
+        const cx = (ax + ((bx - ax) * s) / steps) / CELL;
+        const cy = (ay + ((by - ay) * s) / steps) / CELL;
+        const c0 = Math.max(0, Math.floor(cx - ri)), c1 = Math.min(this.gridW - 1, Math.ceil(cx + ri));
+        const r0 = Math.max(0, Math.floor(cy - ri)), r1 = Math.min(this.gridH - 1, Math.ceil(cy + ri));
+        for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) {
+          const dx = col + 0.5 - cx, dy = row + 0.5 - cy;
+          if (dx * dx + dy * dy <= r2) this.blocked[row * this.gridW + col] = value;
+        }
+      }
+    }
+  }
+
   private buildCollision(): void {
     for (const b of this.map.buildings) this.fillPolygonCells(b.poly);
     for (const a of this.map.areas) if (a.kind === 'water' || a.kind === 'forest') this.fillPolygonCells(a.poly);
+    for (const w of this.map.waterways) this.strokeCells(w.points, w.width, 1);
+    // Straßen sind frei, auch wo Flächen oder Bäche sie überlappen (Brücken, Waldränder bis zur Fahrbahnmitte)
+    for (const r of this.map.roads) this.strokeCells(r.points, r.width + (r.cls === 1 ? 3 * this.map.pxPerMeter : 16), 0);
     const c = this.map.closure;
     if (c) {
       // Sperrung: Balken quer zur Straße
@@ -271,7 +297,7 @@ export class MapRenderer {
     ctx.lineWidth = 3;
     ctx.setLineDash([32, 32]);
     for (const r of roads) {
-      if (r.width < 2.5 * m.pxPerMeter) continue;
+      if (r.width < 5.5 * m.pxPerMeter) continue;
       this.path(ctx, r.points);
       ctx.stroke();
     }

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { PALETTE, SCENES } from '../config/game';
-import { VEHICLES, type VehicleDef } from '../config/vehicles';
+import { VEHICLES, type VehicleDef, type VehicleId } from '../config/vehicles';
 import { CAMPAIGN } from '../config/campaign';
 import { DriveInput } from '../systems/Input';
 import { Sound } from '../systems/Sound';
@@ -9,7 +9,9 @@ import { arriveAtDepot, damageVehicle, formatTime, setPhase, state, tickMission 
 import type { DriveUiScene } from './DriveUiScene';
 
 export interface DriveSceneData {
-  mode: 'out' | 'back';
+  mode: 'out' | 'back' | 'free';
+  /** Nur für 'free': Fahrzeug ohne Spielstand */
+  vehicle?: VehicleId;
 }
 
 export interface Zone {
@@ -46,7 +48,7 @@ export function addressFor(map: CityMap | undefined, missionId: string, fallback
  * Zivilverkehr, Gebäude und Wasser über das Kollisionsraster des MapRenderers.
  */
 export class DriveScene extends Phaser.Scene {
-  private mode: 'out' | 'back' = 'out';
+  private mode: 'out' | 'back' | 'free' = 'out';
   private vehicleDef!: VehicleDef;
   private player!: Phaser.Physics.Arcade.Image;
   private sirenLight!: Phaser.GameObjects.Rectangle;
@@ -75,10 +77,11 @@ export class DriveScene extends Phaser.Scene {
     this.sirenOn = false;
     this.cars = [];
     this.closureHintShown = false;
-    setPhase(this.mode === 'out' ? 'driving-out' : 'driving-back');
+    const free = this.mode === 'free';
+    if (!free) setPhase(this.mode === 'out' ? 'driving-out' : 'driving-back');
 
     const s = state();
-    this.vehicleDef = VEHICLES[s.currentVehicle ?? 'mtw'];
+    this.vehicleDef = VEHICLES[free ? (data.vehicle ?? 'gkw') : (s.currentVehicle ?? 'mtw')];
     const map = this.cache.json.get('city') as CityMap;
     this.cityMap = new MapRenderer(this, map);
 
@@ -87,7 +90,7 @@ export class DriveScene extends Phaser.Scene {
     const missionZone = this.zones.find((z) => z.kind === 'mission' && z.mission === s.progress?.missionId);
     if (!depot) throw new Error('Zone unterkunft fehlt');
     this.target = this.mode === 'out' ? (missionZone ?? depot) : depot;
-    const spawnZone = this.mode === 'out' ? depot : (missionZone ?? depot);
+    const spawnZone = this.mode === 'back' ? (missionZone ?? depot) : depot;
 
     this.player = this.physics.add.image(spawnZone.rect.centerX, spawnZone.rect.centerY, this.vehicleDef.topSprite).setDepth(10);
     const r = this.vehicleDef.drive.bodyRadius;
@@ -104,6 +107,12 @@ export class DriveScene extends Phaser.Scene {
       .setDepth(5);
     this.tweens.add({ targets: this.targetMarker, alpha: 0.2, yoyo: true, repeat: -1, duration: 500 });
     this.arrow = this.add.triangle(0, 0, 0, -8, 22, 0, 0, 8, PALETTE.yellow).setDepth(12);
+    if (free) {
+      this.targetMarker.setVisible(false);
+      this.arrow.setVisible(false);
+      this.input.keyboard?.on('keydown-ESC', () => this.leaveFreeDrive());
+      this.input.keyboard?.on('keydown-V', () => this.scene.restart({ mode: 'free', vehicle: this.vehicleDef.id === 'gkw' ? 'mtw' : 'gkw' } satisfies DriveSceneData));
+    }
 
     this.cameras.main.setBounds(0, 0, map.width, map.height);
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
@@ -115,7 +124,8 @@ export class DriveScene extends Phaser.Scene {
 
     const alarm = s.progress ? CAMPAIGN[s.progress.alarmIndex] : null;
     const targetText = this.mode === 'out' ? `Ziel: ${alarm ? addressFor(map, alarm.missionId, alarm.address) : '?'}` : 'Ziel: Unterkunft';
-    this.time.delayedCall(50, () => this.toast(this.mode === 'out' ? `Ausrücken mit dem ${this.vehicleDef.name}. ${targetText}` : 'Rückfahrt zur Unterkunft.', 2500));
+    const intro = free ? `Freies Fahren mit dem ${this.vehicleDef.name}. V: Fahrzeug wechseln, ESC: zurück zum Start.` : this.mode === 'out' ? `Ausrücken mit dem ${this.vehicleDef.name}. ${targetText}` : 'Rückfahrt zur Unterkunft.';
+    this.time.delayedCall(50, () => this.toast(intro, free ? 4000 : 2500));
     Sound.play('engine-start');
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -123,6 +133,17 @@ export class DriveScene extends Phaser.Scene {
       this.cityMap.destroy();
       this.scene.stop(SCENES.driveUi);
     });
+  }
+
+  isFreeDrive(): boolean {
+    return this.mode === 'free';
+  }
+
+  private leaveFreeDrive(): void {
+    this.arriving = true;
+    Sound.stop('siren');
+    this.cameras.main.fadeOut(300, 0, 0, 0);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start(SCENES.boot));
   }
 
   private ui(): DriveUiScene | null {
@@ -166,7 +187,7 @@ export class DriveScene extends Phaser.Scene {
     const now = this.time.now;
     if (now - this.lastCrashAt < 600) return;
     this.lastCrashAt = now;
-    damageVehicle(Math.round(damage * this.vehicleDef.drive.mass));
+    if (this.mode !== 'free') damageVehicle(Math.round(damage * this.vehicleDef.drive.mass));
     Sound.play('crash');
     this.cameras.main.shake(120, 0.004);
     this.toast('Blechschaden.', 900);
@@ -176,7 +197,7 @@ export class DriveScene extends Phaser.Scene {
     if (this.arriving) return;
     const dt = Math.min(deltaMs, 50) / 1000;
     const s = state();
-    if (s.progress && !s.progress.completed) tickMission(deltaMs);
+    if (this.mode !== 'free' && s.progress && !s.progress.completed) tickMission(deltaMs);
 
     this.updatePlayer(dt);
     this.updateCars(dt);
@@ -241,7 +262,7 @@ export class DriveScene extends Phaser.Scene {
     const ty = this.target.rect.centerY;
     const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, tx, ty);
     const ang = Phaser.Math.Angle.Between(this.player.x, this.player.y, tx, ty);
-    this.arrow.setVisible(dist > 280);
+    this.arrow.setVisible(this.mode !== 'free' && dist > 280);
     this.arrow.setPosition(this.player.x + Math.cos(ang) * 80, this.player.y + Math.sin(ang) * 80);
     this.arrow.setRotation(ang);
   }
@@ -271,8 +292,8 @@ export class DriveScene extends Phaser.Scene {
     const s = state();
     const v = s.vehicles[this.vehicleDef.id];
     const left = `${this.vehicleDef.name}  ${Math.round(Math.abs(this.speed) * KMH_PER_PXS)} km/h${v.fueled ? '' : '  RESERVE'}`;
-    const center = this.sirenOn ? 'SONDERSIGNAL' : '';
-    const right = s.progress && !s.progress.completed ? `Zeit ${formatTime(s.progress.elapsedMs)}` : `Zustand ${v.condition}%`;
+    const center = this.sirenOn ? 'SONDERSIGNAL' : this.mode === 'free' ? 'FREIES FAHREN' : '';
+    const right = this.mode === 'free' ? 'V: Fahrzeug  ESC: Start' : s.progress && !s.progress.completed ? `Zeit ${formatTime(s.progress.elapsedMs)}` : `Zustand ${v.condition}%`;
     this.ui()?.hud.set(left, center, right);
   }
 
@@ -287,6 +308,7 @@ export class DriveScene extends Phaser.Scene {
   }
 
   private checkArrival(): void {
+    if (this.mode === 'free') return;
     if (!Phaser.Geom.Rectangle.Contains(this.target.rect, this.player.x, this.player.y)) return;
     if (Math.abs(this.speed) > ARRIVE_SPEED) {
       if (Math.floor(this.time.now / 800) % 2 === 0) this.ui()?.hud.set('', 'ANHALTEN', '');
