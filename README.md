@@ -48,10 +48,10 @@ node tools/gen-map.mjs      # Stadtkarte assets/maps/city.tmj neu erzeugen (Tile
 
 Raster und Auflösung:
 
-- Szenen: 320 x 180 px, Integer-Skalierung aufs Fenster
+- Szenen: 640 x 360 px, Integer-Skalierung aufs Fenster; im Fahrmodus Kamera-Zoom 2 auf 16px-Tiles
 - Tiles: 16 x 16 px, Tileset `assets/tiles/city-tileset.png` (Reihenfolge in `tools/tiles.mjs`)
 - Palette: `src/config/palette.json`, 36 Farben
-- Schrift: 5 x 7 px, `assets/fonts/pixel-5x7.png` mit Zeichenliste in `pixel-5x7.json`
+- Schrift: 5 x 7 Glyphen, gerendert als 10 x 14 px in `assets/fonts/pixel-font.png` mit Zeichenliste in `pixel-font.json`
 
 ## Projektstruktur
 

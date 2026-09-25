@@ -10,17 +10,22 @@ const P = JSON.parse(fs.readFileSync(new URL('../src/config/palette.json', impor
 
 // ---------------------------------------------------------------- Schrift
 {
+  // 5x7-Glyphen, mit Faktor FS gerendert (10x14 bei FS = 2), passend zur 640x360-Auflösung.
+  const FS = 2;
+  const gw = GLYPH_W * FS;
+  const gh = GLYPH_H * FS;
+  const sp = FS;
   const rows = Math.ceil(CHARS.length / CHARS_PER_ROW);
-  const c = new Canvas(CHARS_PER_ROW * (GLYPH_W + 1), rows * (GLYPH_H + 1));
+  const c = new Canvas(CHARS_PER_ROW * (gw + sp), rows * (gh + sp));
   [...CHARS].forEach((ch, i) => {
-    const gx = (i % CHARS_PER_ROW) * (GLYPH_W + 1);
-    const gy = Math.floor(i / CHARS_PER_ROW) * (GLYPH_H + 1);
-    c.pattern(gx, gy, GLYPHS[ch], { '#': P.white });
+    const gx = (i % CHARS_PER_ROW) * (gw + sp);
+    const gy = Math.floor(i / CHARS_PER_ROW) * (gh + sp);
+    GLYPHS[ch].forEach((row, ry) => [...row].forEach((px, rx) => { if (px === '#') c.rect(gx + rx * FS, gy + ry * FS, FS, FS, P.white); }));
   });
-  c.save('assets/fonts/pixel-5x7.png');
+  c.save('assets/fonts/pixel-font.png');
   fs.writeFileSync(
-    'assets/fonts/pixel-5x7.json',
-    JSON.stringify({ image: 'fonts/pixel-5x7.png', width: GLYPH_W, height: GLYPH_H, chars: CHARS, charsPerRow: CHARS_PER_ROW, spacingX: 1, spacingY: 1 }, null, 2),
+    'assets/fonts/pixel-font.json',
+    JSON.stringify({ image: 'fonts/pixel-font.png', width: gw, height: gh, chars: CHARS, charsPerRow: CHARS_PER_ROW, spacingX: sp, spacingY: sp, lineSpacing: FS * 2 }, null, 2),
   );
 }
 
@@ -84,111 +89,177 @@ topdownVehicle('assets/sprites/civil-car-b-top.png', 18, 9, P.concreteLight, P.g
 topdownVehicle('assets/sprites/civil-car-c-top.png', 18, 9, P.green, P.oliveDark);
 
 // ---------------------------------------------------------------- Seitenansicht-Fahrzeuge (Front links)
-function sideVehicle(file, w, h, cabW) {
+/** Schreibt Text mit den Font-Glyphen (Faktor fs) auf die Canvas. */
+function stamp(c, x, y, text, color, fs = 1) {
+  [...text].forEach((ch, i) => {
+    const g = GLYPHS[ch];
+    if (!g) return;
+    g.forEach((row, ry) => [...row].forEach((px, rx) => { if (px === '#') c.rect(x + (i * (GLYPH_W + 1) + rx) * fs, y + ry * fs, fs, fs, color); }));
+  });
+}
+function sideVehicle(file, w, h, cabW, label) {
   const c = new Canvas(w, h);
-  const bodyTop = 4;
-  const bodyH = h - 10;
-  c.rect(cabW, bodyTop, w - cabW - 1, bodyH, P.thwBlue);
-  c.outline(cabW, bodyTop, w - cabW - 1, bodyH, P.thwBlueDark);
-  c.rect(1, bodyTop + 4, cabW, bodyH - 4, P.thwBlue);
-  c.outline(1, bodyTop + 4, cabW, bodyH - 4, P.thwBlueDark);
-  c.rect(3, bodyTop + 6, cabW - 5, 8, P.skyLight);
-  c.rect(cabW + 2, bodyTop + bodyH - 6, w - cabW - 5, 3, P.yellow);
-  c.rect(1 + Math.floor(cabW / 2), bodyTop, 6, 3, P.thwBlueLight);
+  const bodyTop = 8;
+  const bodyH = h - 20;
+  // Aufbau
+  c.rect(cabW, bodyTop, w - cabW - 2, bodyH, P.thwBlue);
+  c.outline(cabW, bodyTop, w - cabW - 2, bodyH, P.thwBlueDark);
+  c.rect(cabW + 2, bodyTop + 2, w - cabW - 6, 3, P.thwBlueLight); // Kante oben
+  // Kabine
+  c.rect(2, bodyTop + 8, cabW, bodyH - 8, P.thwBlue);
+  c.outline(2, bodyTop + 8, cabW, bodyH - 8, P.thwBlueDark);
+  c.rect(6, bodyTop + 12, cabW - 10, 16, P.skyLight); // Fenster
+  c.rect(6, bodyTop + 12, cabW - 10, 3, P.sky);
+  c.rect(cabW - 4, bodyTop + 10, 2, bodyH - 14, P.thwBlueDark); // Tür
+  c.rect(cabW - 10, bodyTop + 30, 5, 2, P.grayLight); // Türgriff
+  c.rect(2, bodyTop + 2, 12, 6, P.thwBlueLight); // Blaulicht
+  c.rect(4, bodyTop, 8, 3, P.thwBlueLight);
+  c.rect(cabW + 8, bodyTop + 6, 14, 6, P.thwBlueLight); // Blaulicht Aufbau
+  // Reflexstreifen und Schriftzug
+  c.rect(cabW + 4, bodyTop + bodyH - 10, w - cabW - 10, 5, P.yellow);
+  c.rect(2, bodyTop + bodyH - 10, cabW, 5, P.yellow);
+  stamp(c, cabW + 10, bodyTop + 12, 'THW', P.white, 2);
+  stamp(c, cabW + 10, bodyTop + 30, label, P.white, 1);
   // Räder
-  const wheel = (x) => { c.rect(x, h - 8, 10, 8, P.dark); c.rect(x + 3, h - 5, 4, 3, P.gray); };
-  wheel(4); wheel(w - 16);
-  // Tür-Markierung
-  c.rect(cabW - 2, bodyTop + 5, 1, bodyH - 8, P.thwBlueDark);
+  const wheel = (x) => { c.rect(x, h - 16, 20, 16, P.dark); c.rect(x + 6, h - 10, 8, 6, P.gray); c.rect(x + 8, h - 8, 4, 2, P.grayLight); };
+  wheel(8); wheel(w - 32);
+  if (w > 150) wheel(w - 56);
+  // Stoßstange und Scheinwerfer
+  c.rect(0, h - 22, 6, 8, P.grayLight);
+  c.rect(1, h - 20, 3, 3, P.yellow);
   c.save(file);
 }
-sideVehicle('assets/sprites/vehicle-mtw-side.png', 64, 36, 18);
-sideVehicle('assets/sprites/vehicle-gkw-side.png', 96, 48, 22);
+sideVehicle('assets/sprites/vehicle-mtw-side.png', 128, 72, 36, 'MTW');
+sideVehicle('assets/sprites/vehicle-gkw-side.png', 192, 96, 44, 'GKW 1');
 
-// ---------------------------------------------------------------- Helfer (Seitenansicht, 12x24, 2 Frames: stehen / gehen)
+// ---------------------------------------------------------------- Helfer (Seitenansicht, 24x48, 2 Frames: stehen / gehen)
 {
-  const c = new Canvas(24, 24);
-  const frame = (ox, legOffset) => {
-    c.rect(ox + 3, 1, 6, 4, P.white); // Helm
-    c.rect(ox + 4, 5, 4, 3, P.skin); // Gesicht
-    c.rect(ox + 2, 8, 8, 9, P.thwBlue); // Jacke
-    c.rect(ox + 2, 11, 8, 2, P.yellow); // Reflexstreifen
-    c.rect(ox + 3 - legOffset, 17, 3, 7, P.thwBlueDark);
-    c.rect(ox + 6 + legOffset, 17, 3, 7, P.thwBlueDark);
-    c.rect(ox + 2 - legOffset, 23, 4, 1, P.dark);
-    c.rect(ox + 6 + legOffset, 23, 4, 1, P.dark);
+  const c = new Canvas(48, 48);
+  const frame = (ox, step) => {
+    c.rect(ox + 6, 2, 12, 8, P.white); // Helm
+    c.rect(ox + 5, 9, 14, 2, P.grayLight); // Helmrand
+    c.rect(ox + 8, 11, 8, 6, P.skin); // Gesicht
+    c.rect(ox + 4, 17, 16, 17, P.thwBlue); // Jacke
+    c.rect(ox + 4, 22, 16, 3, P.yellow); // Reflexstreifen
+    c.rect(ox + 4, 29, 16, 2, P.yellow);
+    c.rect(ox + 1, 18, 3, 12, P.thwBlue); c.rect(ox + 20, 18, 3, 12, P.thwBlue); // Arme
+    c.rect(ox + 1, 30, 3, 3, P.skin); c.rect(ox + 20, 30, 3, 3, P.skin);
+    c.rect(ox + 6 - step, 34, 5, 12, P.thwBlueDark); // Beine
+    c.rect(ox + 13 + step, 34, 5, 12, P.thwBlueDark);
+    c.rect(ox + 4 - step, 45, 8, 3, P.dark); // Stiefel
+    c.rect(ox + 12 + step, 45, 8, 3, P.dark);
   };
   frame(0, 0);
-  frame(12, 1);
+  frame(24, 2);
   c.save('assets/sprites/helper.png');
 }
 
-// ---------------------------------------------------------------- Szenen-Hintergründe (320x180)
-function sceneCanvas() {
-  return new Canvas(320, 180, P.sky);
+// ---------------------------------------------------------------- Szenen-Hintergründe (640x360)
+const SW = 640;
+const SH = 360;
+function bricks(c, x, y, w, h, a, b, bw = 12, bh = 6) {
+  c.rect(x, y, w, h, a);
+  for (let yy = y; yy < y + h; yy += bh) {
+    const off = ((yy - y) / bh) % 2 === 0 ? 0 : bw / 2;
+    for (let xx = x - off; xx < x + w; xx += bw) c.rect(Math.max(x, xx), yy, Math.min(bw - 1, x + w - Math.max(x, xx)), bh - 1, b);
+  }
+}
+function window_(c, x, y, w, h) {
+  c.rect(x, y, w, h, P.skyLight);
+  c.rect(x, y, w, Math.floor(h / 3), P.sky);
+  c.outline(x, y, w, h, P.brownDark);
+  c.rect(x + Math.floor(w / 2), y, 1, h, P.brownDark);
+  c.rect(x, y + Math.floor(h / 2), w, 1, P.brownDark);
 }
 // Fahrzeughalle: Innenraum
 {
-  const c = sceneCanvas();
-  c.rect(0, 0, 320, 180, P.concreteLight); // Rückwand
-  c.rect(0, 0, 320, 24, P.grayLight); // Deckenstreifen
-  for (let x = 20; x < 320; x += 60) c.rect(x, 4, 24, 4, P.white); // Leuchten
-  c.rect(0, 24, 320, 3, P.thwBlue); // Blaue Bordüre
-  c.rect(0, 150, 320, 30, P.gray); // Hallenboden
-  c.rect(0, 150, 320, 2, P.grayDark);
-  c.rect(60, 152, 90, 26, P.grayDark); // Stellplatz MTW
-  c.rect(160, 152, 110, 26, P.grayDark); // Stellplatz GKW
-  c.rect(60, 152, 90, 1, P.yellow); c.rect(160, 152, 110, 1, P.yellow);
-  // Tor rechts
-  c.rect(276, 40, 44, 110, P.grayLight);
-  for (let y = 44; y < 150; y += 8) c.rect(278, y, 40, 2, P.gray);
-  c.outline(276, 40, 44, 110, P.dark);
-  // Alarmmonitor Rahmen
-  c.rect(8, 40, 44, 34, P.dark);
-  c.rect(10, 42, 40, 30, P.black);
-  c.rect(26, 74, 8, 6, P.dark);
+  const c = new Canvas(SW, SH, P.concreteLight);
+  bricks(c, 0, 48, SW, 252, P.concreteLight, P.concrete, 16, 8); // Rückwand
+  c.rect(0, 0, SW, 48, P.grayLight); // Deckenstreifen
+  for (let x = 40; x < SW; x += 120) { c.rect(x, 8, 48, 8, P.white); c.rect(x + 2, 16, 44, 2, P.yellow); } // Leuchten
+  c.rect(0, 48, SW, 6, P.thwBlue); // Blaue Bordüre
+  // Hallenboden mit Fugen
+  c.rect(0, 300, SW, 60, P.gray);
+  for (let x = 0; x < SW; x += 40) c.rect(x, 300, 1, 60, P.grayDark);
+  for (let y = 300; y < SH; y += 20) c.rect(0, y, SW, 1, P.grayDark);
+  c.rect(0, 300, SW, 4, P.grayDark);
+  c.rect(120, 304, 180, 52, P.grayDark); c.rect(320, 304, 220, 52, P.grayDark); // Stellplätze
+  c.rect(120, 304, 180, 2, P.yellow); c.rect(320, 304, 220, 2, P.yellow);
+  c.rect(120, 304, 2, 52, P.yellow); c.rect(298, 304, 2, 52, P.yellow); c.rect(320, 304, 2, 52, P.yellow); c.rect(538, 304, 2, 52, P.yellow);
+  // Tor rechts mit Warnmarkierung
+  c.rect(552, 80, 88, 220, P.grayLight);
+  for (let y = 88; y < 300; y += 16) c.rect(556, y, 80, 4, P.gray);
+  c.outline(552, 80, 88, 220, P.dark);
+  for (let y = 80; y < 300; y += 16) { c.rect(546, y, 6, 8, P.yellow); c.rect(546, y + 8, 6, 8, P.dark); }
+  // Alarmmonitor
+  c.rect(16, 80, 88, 68, P.dark);
+  c.rect(20, 84, 80, 60, P.black);
+  c.rect(52, 148, 16, 12, P.dark); c.rect(40, 158, 40, 4, P.dark);
+  // Regal mit Ausrüstung
+  c.rect(16, 180, 90, 4, P.brownLight); c.rect(16, 210, 90, 4, P.brownLight);
+  c.rect(22, 190, 14, 20, P.red); c.rect(40, 196, 20, 14, P.gray); c.rect(66, 186, 10, 24, P.orange); c.rect(82, 194, 18, 16, P.thwBlueDark);
   // Werkbank
-  c.rect(6, 118, 50, 6, P.brownLight);
-  c.rect(8, 124, 4, 26, P.brown); c.rect(50, 124, 4, 26, P.brown);
-  c.rect(12, 128, 36, 20, P.brownDark);
-  c.rect(14, 112, 8, 6, P.red); c.rect(30, 112, 10, 6, P.gray);
+  c.rect(12, 236, 100, 12, P.brownLight);
+  c.rect(16, 248, 8, 52, P.brown); c.rect(100, 248, 8, 52, P.brown);
+  c.rect(24, 256, 72, 40, P.brownDark);
+  c.rect(28, 262, 64, 2, P.brown); c.rect(28, 280, 64, 2, P.brown);
+  c.rect(28, 224, 16, 12, P.red); c.rect(60, 226, 20, 10, P.gray); c.rect(88, 222, 8, 14, P.yellow);
+  // Schläuche und Feuerlöscher an der Wand
+  c.rect(300, 90, 24, 24, P.red); c.outline(300, 90, 24, 24, P.redDark); c.rect(308, 84, 8, 6, P.dark);
   c.save('assets/scenes/hall-bg.png');
 }
 // Sturmschaden: Landstraße
 {
-  const c = sceneCanvas();
-  c.rect(0, 0, 320, 100, P.sky);
-  c.rect(0, 20, 320, 30, P.grayLight); c.noise(0, 20, 320, 30, P.skyLight, 0.4, 31); // Wolken
-  c.rect(0, 60, 320, 40, P.oliveDark); // Waldrand
-  for (let x = 0; x < 320; x += 14) { c.rect(x + 2, 52 + (x % 3) * 4, 10, 40, P.green); c.rect(x + 5, 80, 4, 20, P.brownDark); }
-  c.rect(0, 100, 320, 20, P.olive); // Bankett
-  c.rect(0, 120, 320, 44, P.asphalt); // Straße
-  c.noise(0, 120, 320, 44, P.asphaltLight, 0.05, 37);
-  for (let x = 0; x < 320; x += 24) c.rect(x, 141, 12, 2, P.concreteLight);
-  c.rect(0, 164, 320, 16, P.olive); // Bankett unten
-  c.rect(0, 164, 320, 2, P.oliveDark);
+  const c = new Canvas(SW, SH, P.sky);
+  c.rect(0, 0, SW, 200, P.sky);
+  c.rect(0, 30, SW, 40, P.skyLight); c.noise(0, 30, SW, 40, P.grayLight, 0.3, 31); // Wolkenband
+  c.rect(0, 120, SW, 80, P.oliveDark); // Waldrand
+  for (let x = 0; x < SW; x += 28) {
+    const hgt = 60 + (x * 7) % 30;
+    c.rect(x + 4, 200 - hgt, 20, hgt, P.green);
+    c.rect(x + 8, 200 - hgt + 8, 12, hgt - 16, P.greenLight);
+    c.rect(x + 12, 176, 6, 24, P.brownDark);
+  }
+  c.rect(0, 200, SW, 40, P.olive); c.noise(0, 200, SW, 40, P.oliveLight, 0.15, 33); // Bankett
+  c.rect(0, 240, SW, 88, P.asphalt); // Straße
+  c.noise(0, 240, SW, 88, P.asphaltLight, 0.04, 37);
+  c.rect(0, 240, SW, 3, P.concreteLight); c.rect(0, 325, SW, 3, P.concreteLight); // Randlinien
+  for (let x = 0; x < SW; x += 48) c.rect(x, 282, 24, 4, P.concreteLight); // Mittellinie
+  c.rect(0, 328, SW, 32, P.olive); // Bankett unten
+  c.noise(0, 328, SW, 32, P.oliveDark, 0.15, 39);
+  c.rect(0, 328, SW, 3, P.oliveDark);
   c.save('assets/scenes/storm-tree-bg.png');
 }
 // Wasserschaden: Mehrfamilienhaus mit Kellertreppe
 {
-  const c = sceneCanvas();
-  c.rect(0, 0, 320, 180, P.sky);
-  c.rect(0, 0, 200, 130, P.tan); // Hausfassade
-  c.outline(0, 0, 200, 130, P.brownDark);
-  for (let fy = 12; fy < 100; fy += 40) for (let fx = 20; fx < 190; fx += 40) { c.rect(fx, fy, 16, 22, P.skyLight); c.outline(fx, fy, 16, 22, P.brownDark); }
-  c.rect(100, 96, 26, 34, P.brown); c.outline(100, 96, 26, 34, P.brownDark); // Haustür
-  c.rect(0, 130, 200, 8, P.concrete); // Sockel
-  c.rect(0, 138, 320, 18, P.concreteLight); // Gehweg
-  c.rect(0, 156, 320, 24, P.asphalt); // Straße
-  c.noise(0, 156, 320, 24, P.asphaltLight, 0.05, 41);
-  // Kellerschacht (offen, Wasser wird als Prop gezeichnet)
-  c.rect(24, 138, 60, 42, P.grayDark);
-  c.rect(24, 138, 60, 42, P.dark); c.outline(24, 138, 60, 42, P.gray);
-  for (let s = 0; s < 5; s++) c.rect(28 + s * 6, 142 + s * 7, 50 - s * 6, 3, P.gray); // Treppe
+  const c = new Canvas(SW, SH, P.sky);
+  c.rect(0, 20, SW, 30, P.skyLight); c.noise(0, 20, SW, 30, P.grayLight, 0.2, 43);
+  bricks(c, 0, 0, 400, 260, P.tan, P.brownLight, 16, 8); // Fassade
+  c.outline(0, 0, 400, 260, P.brownDark);
+  c.rect(0, 0, 400, 10, P.redDark); // Dachkante
+  for (let fy = 24; fy < 200; fy += 80) for (let fx = 40; fx < 380; fx += 80) { window_(c, fx, fy, 32, 44); c.rect(fx - 2, fy + 44, 36, 3, P.concrete); }
+  // Haustür mit Stufe und Klingelschild
+  c.rect(200, 192, 52, 68, P.brown); c.outline(200, 192, 52, 68, P.brownDark);
+  c.rect(206, 200, 18, 24, P.skyLight); c.rect(228, 200, 18, 24, P.skyLight);
+  c.rect(240, 232, 4, 4, P.yellow);
+  c.rect(196, 258, 60, 6, P.concrete);
+  c.rect(258, 210, 10, 14, P.grayLight); c.outline(258, 210, 10, 14, P.dark);
+  c.rect(0, 260, 400, 16, P.concrete); // Sockel
+  c.rect(0, 276, SW, 36, P.concreteLight); // Gehweg
+  for (let x = 0; x < SW; x += 32) c.rect(x, 276, 1, 36, P.concrete);
+  c.rect(0, 310, SW, 2, P.gray); // Bordstein
+  c.rect(0, 312, SW, 48, P.asphalt); // Straße
+  c.noise(0, 312, SW, 48, P.asphaltLight, 0.04, 41);
+  // Kellerschacht mit Treppe
+  c.rect(48, 276, 120, 84, P.dark); c.outline(48, 276, 120, 84, P.gray);
+  for (let s = 0; s < 5; s++) c.rect(56 + s * 12, 284 + s * 14, 100 - s * 12, 6, P.gray);
+  c.rect(44, 272, 128, 4, P.grayLight); // Schachtrand
   // Gully
-  c.rect(200, 158, 16, 6, P.dark); for (let i = 0; i < 16; i += 4) c.rect(200 + i, 158, 2, 6, P.gray);
+  c.rect(400, 316, 32, 12, P.dark); for (let i = 0; i < 32; i += 8) c.rect(400 + i, 316, 4, 12, P.gray);
   // Sicherungskasten neben der Tür
-  c.rect(132, 104, 12, 16, P.grayLight); c.outline(132, 104, 12, 16, P.dark); c.rect(135, 108, 6, 2, P.red);
+  c.rect(264, 208, 24, 32, P.grayLight); c.outline(264, 208, 24, 32, P.dark); c.rect(270, 216, 12, 4, P.red); c.rect(270, 224, 12, 2, P.dark);
+  // Straßenlaterne rechts
+  c.rect(600, 120, 6, 156, P.grayDark); c.rect(590, 112, 26, 10, P.grayLight); c.rect(594, 114, 18, 4, P.yellow);
   c.save('assets/scenes/water-basement-bg.png');
 }
 console.log('fertig');

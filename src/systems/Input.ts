@@ -29,7 +29,7 @@ export class DriveInput {
   private sirenToggled = false;
   private touchSirenPending = false;
 
-  constructor(private scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene) {
     const kb = scene.input.keyboard;
     if (kb) {
       const K = Phaser.Input.Keyboard.KeyCodes;
@@ -40,7 +40,6 @@ export class DriveInput {
       for (const [name, code] of Object.entries(map)) this.keys[name] = kb.addKey(code);
       this.keys.space.on('down', () => this.toggleSiren());
     }
-    if (scene.sys.game.device.input.touch) this.createTouchButtons();
   }
 
   private toggleSiren(): void {
@@ -48,16 +47,18 @@ export class DriveInput {
     this.sirenToggled = true;
   }
 
-  private createTouchButtons(): void {
+  /** Virtuelle Tasten für Touch-Geräte, gezeichnet in der übergebenen (Overlay-)Szene. */
+  attachTouchButtons(scene: Phaser.Scene): void {
+    if (!scene.sys.game.device.input.touch) return;
     const mk = (key: TouchButton['key'], x: number, y: number, w: number, h: number, label: string) => {
-      const zone = this.scene.add
+      const zone = scene.add
         .rectangle(x, y, w, h, PALETTE.dark, 0.5)
         .setOrigin(0)
         .setScrollFactor(0)
         .setDepth(1000)
-        .setStrokeStyle(1, PALETTE.grayLight)
+        .setStrokeStyle(2, PALETTE.grayLight)
         .setInteractive();
-      this.scene.add.bitmapText(x + w / 2, y + h / 2, 'pixel', label).setOrigin(0.5).setScrollFactor(0).setDepth(1001);
+      scene.add.bitmapText(x + w / 2, y + h / 2, 'pixel', label).setOrigin(0.5).setScrollFactor(0).setDepth(1001);
       const btn: TouchButton = { key, zone, held: false };
       zone.on('pointerdown', () => {
         if (key === 'siren') this.touchSirenPending = true;
@@ -68,11 +69,11 @@ export class DriveInput {
       zone.on('pointerout', release);
       this.buttons.push(btn);
     };
-    mk('left', 6, GAME_HEIGHT - 30, 26, 24, '<');
-    mk('right', 36, GAME_HEIGHT - 30, 26, 24, '>');
-    mk('brake', GAME_WIDTH - 62, GAME_HEIGHT - 30, 26, 24, '-');
-    mk('throttle', GAME_WIDTH - 32, GAME_HEIGHT - 30, 26, 24, '+');
-    mk('siren', GAME_WIDTH - 62, GAME_HEIGHT - 58, 56, 22, 'SOSI');
+    mk('left', 12, GAME_HEIGHT - 60, 52, 48, '<');
+    mk('right', 72, GAME_HEIGHT - 60, 52, 48, '>');
+    mk('brake', GAME_WIDTH - 124, GAME_HEIGHT - 60, 52, 48, '-');
+    mk('throttle', GAME_WIDTH - 64, GAME_HEIGHT - 60, 52, 48, '+');
+    mk('siren', GAME_WIDTH - 124, GAME_HEIGHT - 116, 112, 44, 'SOSI');
   }
 
   read(): DriveControls {
@@ -96,6 +97,7 @@ export class DriveInput {
 
   destroy(): void {
     this.keys.space?.removeAllListeners();
+    this.buttons = [];
   }
 }
 

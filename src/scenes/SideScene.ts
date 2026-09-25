@@ -41,15 +41,15 @@ export class SideScene extends SideSceneBase {
     this.props.clear();
     this.hotspotZones.clear();
 
-    this.setupSide(this.def.background, this.def.groundY, this.def.vehiclePos.x - 10);
+    this.setupSide(this.def.background, this.def.groundY, this.def.vehiclePos.x - 20);
 
     const vehicle = VEHICLES[s.progress.vehicleId];
     this.add.image(this.def.vehiclePos.x, this.def.vehiclePos.y, vehicle.sideSprite).setOrigin(0, 1).setDepth(20);
 
     for (const p of this.def.props) this.createProp(p);
     for (const h of this.def.hotspots) this.hotspotZones.set(h.id, this.addHotspot(h, (d) => void this.onHotspot(d)));
-    this.add.rectangle(0, 11, 150, 10, PALETTE.black, 0.7).setOrigin(0).setDepth(800);
-    this.taskCounter = this.add.bitmapText(3, 12, FONT, '').setDepth(801).setTint(PALETTE.grayLight);
+    this.add.rectangle(0, 22, 300, 20, PALETTE.black, 0.7).setOrigin(0).setDepth(800);
+    this.taskCounter = this.add.bitmapText(6, 24, FONT, '').setDepth(801).setTint(PALETTE.grayLight);
 
     this.applyDoneTaskEffects();
     this.refreshHud();
@@ -70,10 +70,10 @@ export class SideScene extends SideSceneBase {
   private createProp(p: PropDef): void {
     const obj = p.sprite && this.textures.exists(p.sprite)
       ? this.add.image(p.x, p.y, p.sprite).setOrigin(0).setDepth(15)
-      : this.add.rectangle(p.x, p.y, p.w, p.h, PALETTE[p.color]).setOrigin(0).setDepth(15).setStrokeStyle(1, PALETTE.dark);
+      : this.add.rectangle(p.x, p.y, p.w, p.h, PALETTE[p.color]).setOrigin(0).setDepth(15).setStrokeStyle(2, PALETTE.dark);
     obj.setVisible(!p.hidden);
     this.props.set(p.id, obj);
-    if (p.label) this.add.bitmapText(p.x + 2, p.y + 2, FONT, p.label).setDepth(16).setTint(PALETTE.white).setVisible(!p.hidden);
+    if (p.label) this.add.bitmapText(p.x + 4, p.y + 4, FONT, p.label).setDepth(16).setTint(PALETTE.white).setVisible(!p.hidden);
   }
 
   private context(): TaskContext {
@@ -272,14 +272,14 @@ export class SideScene extends SideSceneBase {
       let running = false;
       void this.dialog.say(mg.prompt).then(() => {
         for (const step of mg.steps) {
-          const box = this.add.rectangle(0, 0, 9, 9, PALETTE.yellow).setStrokeStyle(1, PALETTE.dark).setInteractive({ useHandCursor: true });
-          const label = this.add.bitmapText(0, -12, FONT, step.label).setOrigin(0.5, 1).setVisible(false);
-          const labelBg = this.add.rectangle(0, -12, 10, 11, PALETTE.black, 0.8).setOrigin(0.5, 1).setVisible(false);
+          const box = this.add.rectangle(0, 0, 18, 18, PALETTE.yellow).setStrokeStyle(2, PALETTE.dark).setInteractive({ useHandCursor: true });
+          const label = this.add.bitmapText(0, -24, FONT, step.label).setOrigin(0.5, 1).setVisible(false);
+          const labelBg = this.add.rectangle(0, -24, 20, 22, PALETTE.black, 0.8).setOrigin(0.5, 1).setVisible(false);
           const c = this.add.container(step.x, step.y, [box, labelBg, label]).setDepth(60);
           markers.push(c);
           box.on('pointerover', () => {
             label.setVisible(true);
-            labelBg.setSize(label.width + 6, 11).setVisible(true);
+            labelBg.setSize(label.width + 12, 22).setVisible(true);
           });
           box.on('pointerout', () => {
             label.setVisible(false);

@@ -5,7 +5,7 @@ import { Dialog, FONT } from '../systems/Dialog';
 import { Hud, ProgressBar } from '../systems/ui';
 import { Sound } from '../systems/Sound';
 
-const WALK_SPEED = 60; // px/s
+const WALK_SPEED = 120; // px/s
 
 /**
  * Gemeinsame Basis für Seitenansicht-Szenen (Halle, Einsatzstelle):
@@ -16,7 +16,7 @@ export abstract class SideSceneBase extends Phaser.Scene {
   protected hud!: Hud;
   protected helper!: Phaser.GameObjects.Sprite;
   protected bar!: ProgressBar;
-  protected groundY = 150;
+  protected groundY = 300;
   /** Während einer Aktion sind Hotspots gesperrt. */
   protected busy = false;
   private hoverLabel!: Phaser.GameObjects.BitmapText;
@@ -28,8 +28,8 @@ export abstract class SideSceneBase extends Phaser.Scene {
     this.add.image(0, 0, bgKey).setOrigin(0).setDepth(0);
     this.helper = this.add.sprite(helperX, groundY, 'helper', 0).setOrigin(0.5, 1).setDepth(50);
     this.helper.play('helper-idle');
-    this.bar = new ProgressBar(this, helperX, groundY - 34);
-    this.hoverBg = this.add.rectangle(0, 0, 10, 11, PALETTE.black, 0.8).setOrigin(0, 1).setDepth(600).setVisible(false);
+    this.bar = new ProgressBar(this, helperX, groundY - 68);
+    this.hoverBg = this.add.rectangle(0, 0, 20, 22, PALETTE.black, 0.8).setOrigin(0, 1).setDepth(600).setVisible(false);
     this.hoverLabel = this.add.bitmapText(0, 0, FONT, '').setOrigin(0, 1).setDepth(601).setTint(PALETTE.yellow).setVisible(false);
     this.dialog = new Dialog(this);
     this.hud = new Hud(this);
@@ -41,15 +41,15 @@ export abstract class SideSceneBase extends Phaser.Scene {
       .rectangle(def.x, def.y, def.w, def.h, PALETTE.white, 0)
       .setOrigin(0)
       .setDepth(40)
-      .setStrokeStyle(1, PALETTE.yellow, 0.25)
+      .setStrokeStyle(2, PALETTE.yellow, 0.25)
       .setInteractive({ useHandCursor: true });
     zone.setData('def', def);
     zone.on('pointerover', () => {
-      zone.setStrokeStyle(1, PALETTE.yellow, 0.9);
+      zone.setStrokeStyle(2, PALETTE.yellow, 0.9);
       this.showHover(def);
     });
     zone.on('pointerout', () => {
-      zone.setStrokeStyle(1, PALETTE.yellow, 0.25);
+      zone.setStrokeStyle(2, PALETTE.yellow, 0.25);
       this.hideHover();
     });
     zone.on('pointerdown', () => {
@@ -63,12 +63,12 @@ export abstract class SideSceneBase extends Phaser.Scene {
   private showHover(def: HotspotDef): void {
     const label = this.currentLabelFor(def);
     this.hoverLabel.setText(label).setVisible(true);
-    const w = this.hoverLabel.width + 6;
+    const w = this.hoverLabel.width + 12;
     let x = def.x;
-    if (x + w > GAME_WIDTH - 2) x = GAME_WIDTH - 2 - w;
-    const y = Math.max(22, def.y - 2);
-    this.hoverBg.setPosition(x, y).setSize(w, 11).setVisible(true);
-    this.hoverLabel.setPosition(x + 3, y - 1);
+    if (x + w > GAME_WIDTH - 4) x = GAME_WIDTH - 4 - w;
+    const y = Math.max(44, def.y - 4);
+    this.hoverBg.setPosition(x, y).setSize(w, 22).setVisible(true);
+    this.hoverLabel.setPosition(x + 6, y - 2);
   }
 
   private hideHover(): void {
@@ -103,7 +103,7 @@ export abstract class SideSceneBase extends Phaser.Scene {
   /** Aktion mit Fortschrittsbalken über dem Helfer. onProgress bekommt 0..1. */
   protected doAction(label: string, ms: number, onProgress?: (p: number) => void): Promise<void> {
     return new Promise((resolve) => {
-      this.bar.setPosition(this.helper.x, this.groundY - 34);
+      this.bar.setPosition(this.helper.x, this.groundY - 68);
       this.bar.setLabel(label);
       this.bar.setProgress(0);
       this.bar.setVisible(true);

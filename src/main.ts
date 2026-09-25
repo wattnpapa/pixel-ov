@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH, PALETTE_HEX } from './config/game';
 import { BootScene } from './scenes/BootScene';
 import { HallScene } from './scenes/HallScene';
 import { DriveScene } from './scenes/DriveScene';
+import { DriveUiScene } from './scenes/DriveUiScene';
 import { SideScene } from './scenes/SideScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { SummaryScene } from './scenes/SummaryScene';
@@ -31,7 +32,7 @@ const game = new Phaser.Game({
     arcade: { debug: false },
   },
   input: { activePointers: 3 },
-  scene: [BootScene, HallScene, DriveScene, SideScene, GameOverScene, SummaryScene],
+  scene: [BootScene, HallScene, DriveScene, DriveUiScene, SideScene, GameOverScene, SummaryScene],
 });
 
 window.addEventListener('resize', () => game.scale.setZoom(integerZoom()));

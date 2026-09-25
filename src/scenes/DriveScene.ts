@@ -3,8 +3,7 @@ import { PALETTE, SCENES } from '../config/game';
 import { VEHICLES, type VehicleDef } from '../config/vehicles';
 import { CAMPAIGN } from '../config/campaign';
 import { DriveInput } from '../systems/Input';
-import { Dialog } from '../systems/Dialog';
-import { Hud } from '../systems/ui';
+import type { DriveUiScene } from './DriveUiScene';
 import { Sound } from '../systems/Sound';
 import { arriveAtDepot, damageVehicle, formatTime, setPhase, state, tickMission } from '../systems/GameState';
 
@@ -44,8 +43,6 @@ export class DriveScene extends Phaser.Scene {
   private speed = 0;
   private heading = 0;
   private controls!: DriveInput;
-  private dialog!: Dialog;
-  private hud!: Hud;
   private zones: Zone[] = [];
   private target!: Zone;
   private targetMarker!: Phaser.GameObjects.Rectangle;
@@ -105,20 +102,33 @@ export class DriveScene extends Phaser.Scene {
     this.tweens.add({ targets: this.targetMarker, alpha: 0.2, yoyo: true, repeat: -1, duration: 500 });
     this.arrow = this.add.triangle(0, 0, 0, -3, 8, 0, 0, 3, PALETTE.yellow).setDepth(12);
 
+    // Welt 2x gezoomt: 16px-Tiles erscheinen wie 32px, das HUD liegt in der Overlay-Szene bei Zoom 1.
+    this.cameras.main.setZoom(2);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.cameras.main.startFollow(this.player, true, 0.15, 0.15);
     this.cameras.main.setRoundPixels(true);
 
     this.controls = new DriveInput(this);
-    this.dialog = new Dialog(this);
-    this.hud = new Hud(this);
+    this.scene.launch(SCENES.driveUi, { input: this.controls });
 
     const alarm = s.progress ? CAMPAIGN[s.progress.alarmIndex] : null;
     const targetText = this.mode === 'out' ? `Ziel: ${alarm?.address ?? '?'}` : 'Ziel: Unterkunft';
-    this.dialog.toast(this.mode === 'out' ? `Ausrücken mit dem ${this.vehicleDef.name}. ${targetText}` : 'Rückfahrt zur Unterkunft.', 2500);
+    this.time.delayedCall(50, () => this.toast(this.mode === 'out' ? `Ausrücken mit dem ${this.vehicleDef.name}. ${targetText}` : 'Rückfahrt zur Unterkunft.', 2500));
     Sound.play('engine-start');
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.controls.destroy());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.controls.destroy();
+      this.scene.stop(SCENES.driveUi);
+    });
+  }
+
+  private ui(): DriveUiScene | null {
+    const s = this.scene.get(SCENES.driveUi) as DriveUiScene | null;
+    return s && s.hud ? s : null;
+  }
+
+  private toast(text: string, ms?: number): void {
+    this.ui()?.toast(text, ms);
   }
 
   private readZones(map: Phaser.Tilemaps.Tilemap): Zone[] {
@@ -169,7 +179,7 @@ export class DriveScene extends Phaser.Scene {
     damageVehicle(Math.round(damage * this.vehicleDef.drive.mass));
     Sound.play('crash');
     this.cameras.main.shake(120, 0.004);
-    this.dialog.toast('Blechschaden.', 900);
+    this.toast('Blechschaden.', 900);
   }
 
   update(_time: number, deltaMs: number): void {
@@ -256,7 +266,7 @@ export class DriveScene extends Phaser.Scene {
     const left = `${this.vehicleDef.name}  ${Math.round(Math.abs(this.speed))} km/h${v.fueled ? '' : '  RESERVE'}`;
     const center = this.sirenOn ? 'SONDERSIGNAL' : '';
     const right = s.progress && !s.progress.completed ? `Zeit ${formatTime(s.progress.elapsedMs)}` : `Zustand ${v.condition}%`;
-    this.hud.set(left, center, right);
+    this.ui()?.hud.set(left, center, right);
   }
 
   private checkClosureHint(): void {
@@ -265,14 +275,14 @@ export class DriveScene extends Phaser.Scene {
     if (!closure) return;
     if (Phaser.Math.Distance.Between(this.player.x, this.player.y, closure.rect.centerX, closure.rect.centerY) < 56) {
       this.closureHintShown = true;
-      this.dialog.toast('Baustelle. Hier geht es nicht weiter, Umweg über die Umgehungsstraße.', 2500);
+      this.toast('Baustelle. Hier geht es nicht weiter, Umweg über die Umgehungsstraße.', 2500);
     }
   }
 
   private checkArrival(): void {
     if (!Phaser.Geom.Rectangle.Contains(this.target.rect, this.player.x, this.player.y)) return;
     if (Math.abs(this.speed) > ARRIVE_SPEED) {
-      if (Math.floor(this.time.now / 800) % 2 === 0) this.hud.set('', 'ANHALTEN', '');
+      if (Math.floor(this.time.now / 800) % 2 === 0) this.ui()?.hud.set('', 'ANHALTEN', '');
       return;
     }
     this.arriving = true;

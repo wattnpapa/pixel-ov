@@ -3,7 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from '../config/game';
 import { Sound } from './Sound';
 
 export const FONT = 'pixel';
-export const LINE_H = 9;
+export const LINE_H = 18;
 
 /**
  * Dialogbox am unteren Bildrand: schwarz, weißer Text. Blockiert Hotspot-Klicks,
@@ -43,7 +43,7 @@ export class Dialog {
   private buildBox(height: number): void {
     const y = GAME_HEIGHT - height;
     const bg = this.scene.add.rectangle(0, y, GAME_WIDTH, height, PALETTE.black).setOrigin(0).setInteractive();
-    const line = this.scene.add.rectangle(0, y, GAME_WIDTH, 1, PALETTE.white).setOrigin(0);
+    const line = this.scene.add.rectangle(0, y, GAME_WIDTH, 2, PALETTE.white).setOrigin(0);
     this.container.add([bg, line]);
     this.container.setVisible(true);
     this.open = true;
@@ -59,11 +59,11 @@ export class Dialog {
   say(text: string): Promise<void> {
     return new Promise((resolve) => {
       this.clear();
-      const { obj, h } = this.textHeight(text, GAME_WIDTH - 16);
-      const height = Math.max(40, h + 22);
+      const { obj, h } = this.textHeight(text, GAME_WIDTH - 32);
+      const height = Math.max(80, h + 44);
       this.buildBox(height);
-      obj.setPosition(8, GAME_HEIGHT - height + 7);
-      const hint = this.scene.add.bitmapText(GAME_WIDTH - 8, GAME_HEIGHT - 10, FONT, '[weiter]').setOrigin(1, 0).setTint(PALETTE.grayLight);
+      obj.setPosition(16, GAME_HEIGHT - height + 14);
+      const hint = this.scene.add.bitmapText(GAME_WIDTH - 16, GAME_HEIGHT - 20, FONT, '[weiter]').setOrigin(1, 0).setTint(PALETTE.grayLight);
       this.container.add([obj, hint]);
       this.scene.tweens.add({ targets: hint, alpha: 0.3, yoyo: true, repeat: -1, duration: 500 });
       this.onDismiss = () => {
@@ -78,12 +78,12 @@ export class Dialog {
   choose(prompt: string, options: string[]): Promise<number> {
     return new Promise((resolve) => {
       this.clear();
-      const { obj, h } = this.textHeight(prompt, GAME_WIDTH - 16);
-      const optH = 11;
-      const height = Math.min(GAME_HEIGHT, h + 16 + options.length * optH);
+      const { obj, h } = this.textHeight(prompt, GAME_WIDTH - 32);
+      const optH = 22;
+      const height = Math.min(GAME_HEIGHT, h + 32 + options.length * optH);
       this.buildBox(height);
-      const top = GAME_HEIGHT - height + 6;
-      obj.setPosition(8, top);
+      const top = GAME_HEIGHT - height + 12;
+      obj.setPosition(16, top);
       this.container.add(obj);
       const pick = (i: number) => {
         Sound.play('click');
@@ -101,12 +101,12 @@ export class Dialog {
         this.onClose = () => kb.off('keydown', handler);
       }
       options.forEach((label, i) => {
-        const y = top + h + 4 + i * optH;
+        const y = top + h + 8 + i * optH;
         const row = this.scene.add
-          .rectangle(4, y - 1, GAME_WIDTH - 8, optH, PALETTE.dark)
+          .rectangle(8, y - 2, GAME_WIDTH - 16, optH, PALETTE.dark)
           .setOrigin(0)
           .setInteractive({ useHandCursor: true });
-        const txt = this.scene.add.bitmapText(14, y + 1, FONT, `${i + 1}. ${label}`).setTint(PALETTE.yellow);
+        const txt = this.scene.add.bitmapText(28, y + 2, FONT, `${i + 1}. ${label}`).setTint(PALETTE.yellow);
         row.on('pointerover', () => row.setFillStyle(PALETTE.grayDark));
         row.on('pointerout', () => row.setFillStyle(PALETTE.dark));
         row.on('pointerdown', () => pick(i));
@@ -118,9 +118,9 @@ export class Dialog {
   /** Kurzer Hinweis oben, ohne Blockade. */
   toast(text: string, ms = 1800): void {
     const box = this.scene.add.container(0, 0).setDepth(890).setScrollFactor(0);
-    const t = this.scene.add.bitmapText(GAME_WIDTH / 2, 30, FONT, text).setOrigin(0.5, 0).setMaxWidth(GAME_WIDTH - 20).setCenterAlign();
+    const t = this.scene.add.bitmapText(GAME_WIDTH / 2, 60, FONT, text).setOrigin(0.5, 0).setMaxWidth(GAME_WIDTH - 40).setCenterAlign();
     const b = t.getTextBounds().local;
-    const bg = this.scene.add.rectangle(GAME_WIDTH / 2, 30 + b.height / 2, b.width + 10, b.height + 6, PALETTE.black, 0.85);
+    const bg = this.scene.add.rectangle(GAME_WIDTH / 2, 60 + b.height / 2, b.width + 20, b.height + 12, PALETTE.black, 0.85);
     box.add([bg, t]);
     this.scene.time.delayedCall(ms, () => box.destroy());
   }
