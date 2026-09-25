@@ -43,8 +43,17 @@ Alle Grafiken liegen in `assets/` (Vite `publicDir`) und werden über feste Pfad
 
 ```
 node tools/gen-assets.mjs   # Platzhalter-Sprites, Hintergründe, Tileset, Pixelfont neu erzeugen
-node tools/gen-map.mjs      # Stadtkarte assets/maps/city.tmj neu erzeugen (Tiled-Format)
+node tools/gen-map.mjs      # Schachbrett-Stadtkarte assets/maps/city.tmj neu erzeugen (Tiled-Format)
 ```
+
+### Echte Karte aus OpenStreetMap (Oldenburg, Artillerieweg 59)
+
+```
+node tools/fetch-osm.mjs                 # holt Straßen, Gebäude, Wasser, Grünflächen im 1-km-Umkreis nach data/osm/
+node tools/gen-map-osm.mjs               # rastert daraus assets/maps/city.tmj (4 m pro Tile, 500 x 500 Tiles)
+```
+
+Der Abruf braucht Netzzugang zu `nominatim.openstreetmap.org` (Adresse) und `overpass-api.de` (Daten). Die heruntergeladene Datei wird eingecheckt, damit der Generator ohne Netz läuft. Unterkunft, beide Einsatzzonen, die Sperrung und die Zivilrouten platziert der Generator automatisch auf dem Straßennetz: Unterkunft am nächsten Straßen-Tile zur Adresse, Einsätze 550 bis 850 m entfernt in verschiedenen Richtungen, Sperrung auf dem Weg zum ersten Einsatz.
 
 Raster und Auflösung:
 
