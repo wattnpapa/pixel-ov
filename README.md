@@ -50,7 +50,7 @@ node tools/gen-map.mjs      # Schachbrett-Stadtkarte assets/maps/city.tmj neu er
 
 ```
 node tools/fetch-osm.mjs                 # holt Straßen, Gebäude, Wasser, Grünflächen im 1-km-Umkreis nach data/osm/
-node tools/gen-map-osm.mjs               # rastert daraus assets/maps/city.tmj (4 m pro Tile = 32 px, 500 x 500 Tiles)
+node tools/gen-map-osm.mjs               # rastert daraus assets/maps/city.tmj (4 m pro Tile = 64 px, 500 x 500 Tiles)
 ```
 
 Der Abruf braucht Netzzugang zu `nominatim.openstreetmap.org` (Adresse) und `overpass-api.de` (Daten). Die heruntergeladene Datei wird eingecheckt, damit der Generator ohne Netz läuft. Unterkunft, beide Einsatzzonen, die Sperrung und die Zivilrouten platziert der Generator automatisch auf dem Straßennetz: Unterkunft am nächsten Straßen-Tile zur Adresse, Einsätze 550 bis 850 m entfernt in verschiedenen Richtungen, Sperrung auf dem Weg zum ersten Einsatz.
@@ -58,7 +58,7 @@ Der Abruf braucht Netzzugang zu `nominatim.openstreetmap.org` (Adresse) und `ove
 Raster und Auflösung:
 
 - Szenen: 640 x 360 px, Integer-Skalierung aufs Fenster (auf Handys passend verkleinert)
-- Tiles: 32 x 32 px, Tileset `assets/tiles/city-tileset.png` (Reihenfolge in `tools/tiles.mjs`); Draufsicht-Fahrzeuge 40 x 20 (MTW), 56 x 24 (GKW), 36 x 18 (Zivil)
+- Tiles: 64 x 64 px, Tileset `assets/tiles/city-tileset.png` (Reihenfolge in `tools/tiles.mjs`); Draufsicht-Fahrzeuge 80 x 40 (MTW), 112 x 48 (GKW), 72 x 36 (Zivil)
 - Palette: `src/config/palette.json`, 36 Farben
 - Schrift: 5 x 7 Glyphen, gerendert als 10 x 14 px in `assets/fonts/pixel-font.png` mit Zeichenliste in `pixel-font.json`
 

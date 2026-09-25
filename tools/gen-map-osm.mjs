@@ -8,7 +8,7 @@ import { TILES } from './tiles.mjs';
 
 const file = process.argv[2] ?? 'data/osm/oldenburg-artillerieweg.json';
 const METERS_PER_TILE = 4;
-const T = 32;
+const T = 64;
 const data = JSON.parse(fs.readFileSync(file, 'utf8'));
 const { center, radiusM } = data;
 const id = (name) => TILES.indexOf(name) + 1;
@@ -239,7 +239,7 @@ if (towardA) zones.push({ id: 4, name: 'sperrung', ...zoneRect(towardA.x, toward
 const wayLen = (pts) => pts.reduce((a, p, i) => (i ? a + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) : 0), 0);
 const longWays = roadWays.filter((r) => r.width >= 3 && wayLen(r.pts) * METERS_PER_TILE > 250).sort((a, b) => wayLen(b.pts) - wayLen(a.pts));
 const sprites = ['civil-car-a-top', 'civil-car-b-top', 'civil-car-c-top', 'civil-car-a-top', 'civil-car-b-top'];
-const objects = [{ id: 10, name: 'spawn-depot', type: 'spawn', x: px(depot.x) + 16, y: px(depot.y) + 16, width: 0, height: 0, point: true, rotation: 0 }];
+const objects = [{ id: 10, name: 'spawn-depot', type: 'spawn', x: px(depot.x) + 32, y: px(depot.y) + 32, width: 0, height: 0, point: true, rotation: 0 }];
 longWays.slice(0, 5).forEach((r, i) => {
   const pts = r.pts.map((p) => ({ x: Math.max(1, Math.min(W - 1, p.x)), y: Math.max(1, Math.min(H - 1, p.y)) }));
   const loop = [...pts, ...pts.slice(1, -1).reverse()];
@@ -247,7 +247,7 @@ longWays.slice(0, 5).forEach((r, i) => {
   objects.push({
     id: 11 + i, name: `route-${r.name || r.way.id}`, type: 'route', x: px(o.x), y: px(o.y), width: 0, height: 0, rotation: 0,
     polygon: loop.map((p) => ({ x: px(p.x - o.x), y: px(p.y - o.y) })),
-    properties: [{ name: 'sprite', type: 'string', value: sprites[i] }, { name: 'speed', type: 'int', value: 72 + i * 8 }],
+    properties: [{ name: 'sprite', type: 'string', value: sprites[i] }, { name: 'speed', type: 'int', value: 110 + i * 12 }],
   });
 });
 
@@ -259,7 +259,7 @@ const map = {
   width: W, height: H, tilewidth: T, tileheight: T, infinite: false, nextlayerid: 6, nextobjectid: 20,
   properties: [{ name: 'source', type: 'string', value: `OpenStreetMap, ${data.address}, Radius ${radiusM} m, ${METERS_PER_TILE} m/Tile` }],
   tilesets: [{
-    firstgid: 1, name: 'city-tileset', image: '../tiles/city-tileset.png', imagewidth: 256, imageheight: 96,
+    firstgid: 1, name: 'city-tileset', image: '../tiles/city-tileset.png', imagewidth: 512, imageheight: 192,
     tilewidth: T, tileheight: T, tilecount: TILES.length, columns: 8, margin: 0, spacing: 0,
     tiles: TILES.map((name, i) => ({ id: i, type: name, properties: collidingTiles.includes(name) ? [{ name: 'collides', type: 'bool', value: true }] : [] })),
   }],

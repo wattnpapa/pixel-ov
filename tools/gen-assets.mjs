@@ -29,39 +29,74 @@ const P = JSON.parse(fs.readFileSync(new URL('../src/config/palette.json', impor
   );
 }
 
-// ---------------------------------------------------------------- Tileset (32x32)
-const TILE = 32;
+/** Schreibt Text mit den Font-Glyphen (Faktor fs) auf die Canvas. */
+function stamp(c, x, y, text, color, fs = 1) {
+  [...text].forEach((ch, i) => {
+    const g = GLYPHS[ch];
+    if (!g) return;
+    g.forEach((row, ry) => [...row].forEach((px, rx) => { if (px === '#') c.rect(x + (i * (GLYPH_W + 1) + rx) * fs, y + ry * fs, fs, fs, color); }));
+  });
+}
+// ---------------------------------------------------------------- Tileset (64x64)
+const TILE = 64;
 {
   const cols = 8;
   const rows = Math.ceil(TILES.length / cols);
   const c = new Canvas(cols * TILE, rows * TILE);
-  const grassBase = (x, y, seed) => { c.rect(x, y, 32, 32, P.olive); c.noise(x, y, 32, 32, P.oliveLight, 0.10, seed); c.noise(x, y, 32, 32, P.oliveDark, 0.06, seed + 1); for (let i = 0; i < 5; i++) { const tx = x + ((seed * 7 + i * 13) % 28); const ty = y + ((seed * 11 + i * 17) % 28); c.rect(tx, ty, 1, 3, P.oliveLight); c.rect(tx + 2, ty + 1, 1, 2, P.oliveLight); } };
-  const roadBase = (x, y, seed) => { c.rect(x, y, 32, 32, P.asphalt); c.noise(x, y, 32, 32, P.asphaltLight, 0.05, seed); c.noise(x, y, 32, 32, P.asphaltDark, 0.05, seed + 3); };
-  const roofBase = (x, y, base, light, seed) => { c.rect(x, y, 32, 32, base); for (let ry = 0; ry < 32; ry += 4) { const off = (ry / 4) % 2 ? 4 : 0; for (let rx = -8; rx < 32; rx += 8) c.rect(x + Math.max(0, rx + off), y + ry, Math.min(7, 32 - Math.max(0, rx + off)), 3, light); } c.noise(x, y, 32, 32, P.dark, 0.04, seed); c.outline(x, y, 32, 32, P.dark); };
+  const S = TILE;
+  const rnd = (seed) => { let s = seed; return () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff); };
+  const grassBase = (x, y, seed) => {
+    c.rect(x, y, S, S, P.olive);
+    c.noise(x, y, S, S, P.oliveLight, 0.08, seed);
+    c.noise(x, y, S, S, P.oliveDark, 0.05, seed + 1);
+    const r = rnd(seed);
+    for (let i = 0; i < 14; i++) { const tx = x + Math.floor(r() * (S - 4)); const ty = y + Math.floor(r() * (S - 6)); c.rect(tx, ty + 2, 1, 4, P.oliveLight); c.rect(tx + 2, ty, 1, 5, P.oliveLight); c.rect(tx + 4, ty + 3, 1, 3, P.oliveDark); }
+  };
+  const roadBase = (x, y, seed) => {
+    c.rect(x, y, S, S, P.asphalt);
+    c.noise(x, y, S, S, P.asphaltLight, 0.04, seed);
+    c.noise(x, y, S, S, P.asphaltDark, 0.04, seed + 3);
+    const r = rnd(seed + 7);
+    for (let i = 0; i < 3; i++) { const cx = x + Math.floor(r() * S); const cy = y + Math.floor(r() * S); c.rect(cx, cy, 6, 1, P.asphaltDark); c.rect(cx + 6, cy + 1, 4, 1, P.asphaltDark); }
+  };
+  const bricks = (x, y, base, light, dark, bw = 12, bh = 6) => {
+    c.rect(x, y, S, S, base);
+    for (let ry = 0; ry < S; ry += bh) {
+      const off = (ry / bh) % 2 ? bw / 2 : 0;
+      for (let bx = -bw; bx < S; bx += bw) { const sx = Math.max(0, bx + off); const w = Math.min(bw - 1, S - sx); if (w > 0) { c.rect(x + sx, y + ry, w, bh - 1, light); c.rect(x + sx, y + ry + bh - 2, w, 1, dark); } }
+    }
+  };
+  const roofBase = (x, y, base, light, dark, seed) => {
+    c.rect(x, y, S, S, base);
+    for (let ry = 0; ry < S; ry += 8) { const off = (ry / 8) % 2 ? 8 : 0; for (let rx = -16; rx < S; rx += 16) { const sx = Math.max(0, rx + off); const w = Math.min(15, S - sx); if (w > 0) { c.rect(x + sx, y + ry + 1, w, 6, light); c.rect(x + sx, y + ry + 6, w, 1, dark); } } }
+    c.noise(x, y, S, S, dark, 0.03, seed);
+    c.outline(x, y, S, S, P.dark);
+  };
+  const window_ = (x, y, w, h) => { c.rect(x, y, w, h, P.skyLight); c.rect(x, y, w, Math.floor(h / 3), P.sky); c.outline(x, y, w, h, P.dark); c.rect(x + Math.floor(w / 2), y, 1, h, P.dark); c.rect(x, y + Math.floor(h / 2), w, 1, P.dark); c.rect(x - 1, y + h, w + 2, 2, P.grayLight); };
   const draw = {
     grass: (x, y) => grassBase(x, y, 3),
-    'grass-alt': (x, y) => { grassBase(x, y, 7); c.noise(x, y, 32, 32, P.oliveDark, 0.12, 9); },
+    'grass-alt': (x, y) => { grassBase(x, y, 7); c.noise(x, y, S, S, P.oliveDark, 0.1, 9); },
     road: (x, y) => roadBase(x, y, 11),
-    'road-line-h': (x, y) => { roadBase(x, y, 11); c.rect(x + 4, y + 15, 18, 3, P.concreteLight); },
-    'road-line-v': (x, y) => { roadBase(x, y, 11); c.rect(x + 15, y + 4, 3, 18, P.concreteLight); },
-    'road-edge-h': (x, y) => { roadBase(x, y, 11); c.rect(x, y, 32, 2, P.concrete); },
-    'road-edge-v': (x, y) => { roadBase(x, y, 11); c.rect(x, y, 2, 32, P.concrete); },
-    sidewalk: (x, y) => { c.rect(x, y, 32, 32, P.concrete); for (const [px, py] of [[0, 0], [16, 0], [0, 16], [16, 16]]) { c.rect(x + px + 1, y + py + 1, 14, 14, P.concreteLight); c.noise(x + px + 1, y + py + 1, 14, 14, P.concrete, 0.08, px + py); } },
-    'wall-a': (x, y) => { c.rect(x, y, 32, 32, P.brown); for (let r = 0; r < 8; r++) { const off = r % 2 ? 4 : 0; for (let bx = -8; bx < 32; bx += 8) c.rect(x + Math.max(0, bx + off), y + r * 4, Math.min(7, 32 - Math.max(0, bx + off)), 3, P.brownLight); } c.rect(x + 6, y + 8, 8, 12, P.skyLight); c.outline(x + 6, y + 8, 8, 12, P.brownDark); c.rect(x + 18, y + 8, 8, 12, P.skyLight); c.outline(x + 18, y + 8, 8, 12, P.brownDark); c.rect(x + 13, y + 22, 6, 10, P.brownDark); },
-    'wall-b': (x, y) => { c.rect(x, y, 32, 32, P.tan); c.noise(x, y, 32, 32, P.brownLight, 0.06, 5); c.rect(x + 4, y + 6, 8, 12, P.sky); c.outline(x + 4, y + 6, 8, 12, P.brownDark); c.rect(x + 20, y + 6, 8, 12, P.sky); c.outline(x + 20, y + 6, 8, 12, P.brownDark); c.rect(x + 12, y + 20, 8, 12, P.brownDark); c.rect(x + 17, y + 26, 1, 2, P.yellow); c.rect(x, y + 31, 32, 1, P.brownDark); },
-    roof: (x, y) => roofBase(x, y, P.grayDark, P.gray, 13),
-    'roof-blue': (x, y) => roofBase(x, y, P.thwBlueDark, P.thwBlue, 15),
-    'roof-red': (x, y) => roofBase(x, y, P.redDark, P.red, 17),
-    fence: (x, y) => { grassBase(x, y, 19); c.rect(x, y + 12, 32, 3, P.brownLight); c.rect(x, y + 22, 32, 3, P.brownLight); for (let i = 2; i < 32; i += 10) { c.rect(x + i, y + 6, 4, 24, P.brown); c.rect(x + i, y + 6, 4, 2, P.brownDark); } },
-    tree: (x, y) => { grassBase(x, y, 21); c.circle(x + 17, y + 18, 11, P.oliveDark); c.circle(x + 15, y + 15, 11, P.green); c.circle(x + 13, y + 12, 6, P.greenLight); c.rect(x + 14, y + 24, 4, 6, P.brownDark); },
-    water: (x, y) => { c.rect(x, y, 32, 32, P.water); c.noise(x, y, 32, 32, P.waterDark, 0.08, 23); for (let i = 0; i < 4; i++) c.rect(x + ((i * 9) % 24), y + 4 + i * 7, 8, 1, P.waterLight); },
-    construction: (x, y) => { roadBase(x, y, 25); c.rect(x + 2, y + 8, 28, 4, P.dark); c.rect(x + 2, y + 20, 28, 4, P.dark); for (let i = 0; i < 28; i += 8) { c.rect(x + 2 + i, y + 12, 4, 8, P.red); c.rect(x + 6 + i, y + 12, 4, 8, P.white); } c.rect(x + 4, y + 4, 3, 24, P.grayLight); c.rect(x + 25, y + 4, 3, 24, P.grayLight); c.rect(x + 13, y + 2, 6, 4, P.orange); },
-    'depot-floor': (x, y) => { c.rect(x, y, 32, 32, P.grayLight); c.noise(x, y, 32, 32, P.concreteLight, 0.1, 27); c.rect(x, y, 32, 1, P.gray); c.rect(x, y, 1, 32, P.gray); },
-    'depot-wall': (x, y) => { c.rect(x, y, 32, 32, P.thwBlue); c.outline(x, y, 32, 32, P.thwBlueDark); c.rect(x + 3, y + 12, 26, 8, P.yellow); c.rect(x + 8, y + 24, 16, 8, P.grayLight); for (let i = 0; i < 8; i += 2) c.rect(x + 8, y + 24 + i, 16, 1, P.gray); },
-    field: (x, y) => { c.rect(x, y, 32, 32, P.brownLight); for (let i = 0; i < 32; i += 6) { c.rect(x, y + i, 32, 2, P.brown); c.noise(x, y + i + 2, 32, 4, P.oliveLight, 0.1, i); } },
-    flower: (x, y) => { grassBase(x, y, 29); for (const [fx, fy, col] of [[6, 8, P.pink], [20, 18, P.yellow], [12, 24, P.pink], [24, 6, P.white], [4, 22, P.yellow]]) { c.rect(x + fx, y + fy, 2, 2, col); c.rect(x + fx, y + fy + 2, 1, 2, P.oliveDark); } },
-    gravel: (x, y) => { c.rect(x, y, 32, 32, P.concrete); c.noise(x, y, 32, 32, P.gray, 0.25, 31); c.noise(x, y, 32, 32, P.concreteLight, 0.15, 33); },
-    marker: (x, y) => { c.rect(x + 4, y + 4, 24, 24, P.yellow); c.outline(x + 4, y + 4, 24, 24, P.dark); c.rect(x + 14, y + 8, 4, 10, P.dark); c.rect(x + 14, y + 20, 4, 4, P.dark); },
+    'road-line-h': (x, y) => { roadBase(x, y, 11); c.rect(x + 8, y + 30, 36, 5, P.concreteLight); },
+    'road-line-v': (x, y) => { roadBase(x, y, 11); c.rect(x + 30, y + 8, 5, 36, P.concreteLight); },
+    'road-edge-h': (x, y) => { roadBase(x, y, 11); c.rect(x, y, S, 3, P.concrete); },
+    'road-edge-v': (x, y) => { roadBase(x, y, 11); c.rect(x, y, 3, S, P.concrete); },
+    sidewalk: (x, y) => { c.rect(x, y, S, S, P.concrete); for (let py = 0; py < S; py += 16) for (let px = 0; px < S; px += 16) { c.rect(x + px + 1, y + py + 1, 14, 14, P.concreteLight); c.noise(x + px + 1, y + py + 1, 14, 14, P.concrete, 0.06, px * 3 + py); c.rect(x + px + 1, y + py + 14, 14, 1, P.gray); } },
+    'wall-a': (x, y) => { bricks(x, y, P.brown, P.brownLight, P.brownDark); window_(x + 8, y + 12, 16, 22); window_(x + 40, y + 12, 16, 22); c.rect(x + 26, y + 40, 12, 24, P.brownDark); c.rect(x + 28, y + 42, 8, 10, P.brown); c.rect(x + 35, y + 54, 2, 2, P.yellow); c.rect(x + 22, y + 62, 20, 2, P.concrete); },
+    'wall-b': (x, y) => { c.rect(x, y, S, S, P.tan); c.noise(x, y, S, S, P.brownLight, 0.05, 5); c.rect(x, y, S, 4, P.concreteLight); window_(x + 6, y + 10, 14, 20); window_(x + 25, y + 10, 14, 20); window_(x + 44, y + 10, 14, 20); window_(x + 6, y + 38, 14, 20); c.rect(x + 25, y + 38, 14, 26, P.brownDark); c.rect(x + 27, y + 40, 10, 12, P.brown); c.rect(x + 35, y + 52, 2, 2, P.yellow); window_(x + 44, y + 38, 14, 20); c.rect(x, y + 63, S, 1, P.brownDark); },
+    roof: (x, y) => roofBase(x, y, P.grayDark, P.gray, P.dark, 13),
+    'roof-blue': (x, y) => roofBase(x, y, P.thwBlueDark, P.thwBlue, P.dark, 15),
+    'roof-red': (x, y) => roofBase(x, y, P.redDark, P.red, P.dark, 17),
+    fence: (x, y) => { grassBase(x, y, 19); c.rect(x, y + 24, S, 5, P.brownLight); c.rect(x, y + 44, S, 5, P.brownLight); for (let i = 4; i < S; i += 20) { c.rect(x + i, y + 12, 8, 48, P.brown); c.rect(x + i, y + 12, 8, 3, P.brownDark); c.rect(x + i + 2, y + 10, 4, 2, P.brownDark); } },
+    tree: (x, y) => { grassBase(x, y, 21); c.circle(x + 36, y + 38, 23, P.oliveDark); c.circle(x + 31, y + 31, 23, P.green); c.noise(x + 10, y + 10, 44, 44, P.greenLight, 0.12, 22); c.circle(x + 26, y + 24, 12, P.greenLight); c.noise(x + 14, y + 12, 24, 24, P.green, 0.25, 24); c.rect(x + 29, y + 50, 6, 12, P.brownDark); },
+    water: (x, y) => { c.rect(x, y, S, S, P.water); c.noise(x, y, S, S, P.waterDark, 0.06, 23); for (let i = 0; i < 7; i++) { const wx = x + ((i * 19) % 48); const wy = y + 6 + i * 8; c.rect(wx, wy, 10, 1, P.waterLight); c.rect(wx + 3, wy + 1, 4, 1, P.waterLight); } },
+    construction: (x, y) => { roadBase(x, y, 25); c.rect(x + 6, y + 14, 52, 6, P.dark); c.rect(x + 6, y + 40, 52, 6, P.dark); for (let i = 0; i < 52; i += 16) { c.rect(x + 6 + i, y + 20, 8, 20, P.red); c.rect(x + 14 + i, y + 20, 8, 20, P.white); } c.rect(x + 8, y + 8, 5, 50, P.grayLight); c.rect(x + 51, y + 8, 5, 50, P.grayLight); c.rect(x + 26, y + 2, 12, 8, P.orange); c.rect(x + 28, y + 4, 8, 4, P.yellow); },
+    'depot-floor': (x, y) => { c.rect(x, y, S, S, P.grayLight); c.noise(x, y, S, S, P.concreteLight, 0.1, 27); c.rect(x, y, S, 2, P.gray); c.rect(x, y, 2, S, P.gray); },
+    'depot-wall': (x, y) => { c.rect(x, y, S, S, P.thwBlue); c.outline(x, y, S, S, P.thwBlueDark); c.rect(x + 6, y + 22, 52, 14, P.yellow); c.rect(x + 14, y + 44, 36, 20, P.grayLight); for (let i = 0; i < 20; i += 4) c.rect(x + 14, y + 44 + i, 36, 1, P.gray); c.rect(x + 12, y + 42, 40, 2, P.dark); },
+    field: (x, y) => { c.rect(x, y, S, S, P.brownLight); for (let i = 0; i < S; i += 10) { c.rect(x, y + i, S, 4, P.brown); c.noise(x, y + i + 4, S, 6, P.oliveLight, 0.12, i); } },
+    flower: (x, y) => { grassBase(x, y, 29); const r = rnd(30); for (let i = 0; i < 9; i++) { const fx = x + 4 + Math.floor(r() * 56); const fy = y + 4 + Math.floor(r() * 54); const col = [P.pink, P.yellow, P.white][i % 3]; c.rect(fx, fy, 3, 3, col); c.rect(fx + 1, fy + 1, 1, 1, P.yellowDark); c.rect(fx + 1, fy + 3, 1, 3, P.oliveDark); } },
+    gravel: (x, y) => { c.rect(x, y, S, S, P.concrete); c.noise(x, y, S, S, P.gray, 0.22, 31); c.noise(x, y, S, S, P.concreteLight, 0.15, 33); c.noise(x, y, S, S, P.grayDark, 0.04, 35); },
+    marker: (x, y) => { c.rect(x + 8, y + 8, 48, 48, P.yellow); c.outline(x + 8, y + 8, 48, 48, P.dark); c.outline(x + 10, y + 10, 44, 44, P.yellowDark); c.rect(x + 28, y + 16, 8, 20, P.dark); c.rect(x + 28, y + 40, 8, 8, P.dark); },
     empty: () => {},
   };
   TILES.forEach((name, i) => draw[name]((i % cols) * TILE, Math.floor(i / cols) * TILE));
@@ -71,41 +106,39 @@ const TILE = 32;
 // ---------------------------------------------------------------- Top-down-Fahrzeuge (Blickrichtung: rechts / +x)
 function topdownVehicle(file, w, h, body, roofColor, opts = {}) {
   const c = new Canvas(w, h);
-  const cab = opts.cab ?? 14;
-  // Schatten und Karosserie
-  c.rect(2, 2, w - 3, h - 3, P.dark);
-  c.rect(1, 1, w - 3, h - 3, body);
-  c.outline(1, 1, w - 3, h - 3, P.dark);
-  // Reifen
-  for (const x of opts.wheels ?? [5, w - 12]) { c.rect(x, 0, 6, 2, P.dark); c.rect(x, h - 3, 6, 2, P.dark); }
-  // Aufbau/Dach
-  if (opts.box) { c.rect(3, 3, w - cab - 6, h - 6, opts.box); c.outline(3, 3, w - cab - 6, h - 6, P.dark); for (let y = 5; y < h - 5; y += 3) c.rect(4, y, w - cab - 8, 1, P.grayLight); }
-  // Fahrerkabine vorne (rechts): Dach, Windschutzscheibe
-  c.rect(w - cab - 2, 3, cab - 4, h - 6, roofColor);
-  c.rect(w - 7, 3, 3, h - 6, P.skyLight);
-  c.rect(w - 6, 4, 1, h - 8, P.sky);
-  // Scheinwerfer und Rücklichter
-  c.rect(w - 3, 2, 2, 3, P.yellow); c.rect(w - 3, h - 5, 2, 3, P.yellow);
-  c.rect(1, 2, 1, 3, P.red); c.rect(1, h - 5, 1, 3, P.red);
-  if (opts.stripe) { c.rect(3, Math.floor(h / 2) - 1, w - cab - 6, 3, opts.stripe); }
-  if (opts.lightbar) { c.rect(w - cab - 1, Math.floor(h / 2) - 2, 3, 4, P.thwBlueLight); c.rect(w - cab + 4, Math.floor(h / 2) - 2, 3, 4, P.thwBlueLight); }
+  const cab = opts.cab ?? 28;
+  const wheels = opts.wheels ?? [10, w - 24];
+  // Schatten, Karosserie
+  c.rect(3, 3, w - 4, h - 4, P.dark);
+  c.rect(2, 2, w - 5, h - 5, body);
+  c.outline(2, 2, w - 5, h - 5, P.dark);
+  // Reifen (ragen oben und unten heraus)
+  for (const x of wheels) { c.rect(x, 0, 12, 4, P.dark); c.rect(x + 2, 1, 8, 2, P.grayDark); c.rect(x, h - 4, 12, 4, P.dark); c.rect(x + 2, h - 3, 8, 2, P.grayDark); }
+  // Aufbau (Koffer) mit Dachsicken
+  if (opts.box) { c.rect(5, 5, w - cab - 9, h - 10, opts.box); c.outline(5, 5, w - cab - 9, h - 10, P.dark); for (let y = 8; y < h - 8; y += 5) c.rect(6, y, w - cab - 11, 1, P.grayLight); if (opts.label) stamp(c, 12, Math.floor(h / 2) - 7, opts.label, P.white, 2); }
+  else if (opts.roofHatch) { c.rect(10, 8, w - cab - 16, h - 16, roofColor); c.outline(10, 8, w - cab - 16, h - 16, P.dark); if (opts.label) stamp(c, 14, Math.floor(h / 2) - 7, opts.label, P.white, 2); }
+  // Kabinendach, Windschutzscheibe, Heckscheibe
+  c.rect(w - cab - 3, 5, cab - 8, h - 10, roofColor);
+  c.rect(w - 12, 5, 6, h - 10, P.skyLight);
+  c.rect(w - 11, 6, 2, h - 12, P.sky);
+  c.rect(w - cab - 3, 6, 2, h - 12, P.skyLight);
+  // Außenspiegel
+  c.rect(w - cab + 2, 0, 4, 3, P.dark); c.rect(w - cab + 2, h - 3, 4, 3, P.dark);
+  // Scheinwerfer, Rücklichter, Kühlergrill
+  c.rect(w - 5, 3, 3, 5, P.yellow); c.rect(w - 5, h - 8, 3, 5, P.yellow);
+  c.rect(w - 4, 9, 2, h - 18, P.grayDark);
+  c.rect(2, 3, 2, 5, P.red); c.rect(2, h - 8, 2, 5, P.red);
+  if (opts.stripe) c.rect(6, Math.floor(h / 2) - 2, w - cab - 10, 4, opts.stripe);
+  if (opts.lightbar) { c.rect(w - cab - 1, Math.floor(h / 2) - 4, 5, 8, P.thwBlueLight); c.rect(w - cab + 8, Math.floor(h / 2) - 4, 5, 8, P.thwBlueLight); c.rect(w - cab + 4, Math.floor(h / 2) - 2, 4, 4, P.grayLight); }
   c.save(file);
 }
-topdownVehicle('assets/sprites/vehicle-mtw-top.png', 40, 20, P.thwBlue, P.thwBlueDark, { cab: 12, stripe: P.yellow, lightbar: true, wheels: [6, 28] });
-topdownVehicle('assets/sprites/vehicle-gkw-top.png', 56, 24, P.thwBlue, P.thwBlueDark, { cab: 16, box: P.thwBlueDark, lightbar: true, wheels: [8, 40] });
-topdownVehicle('assets/sprites/civil-car-a-top.png', 36, 18, P.red, P.redDark, { cab: 16, wheels: [5, 25] });
-topdownVehicle('assets/sprites/civil-car-b-top.png', 36, 18, P.concreteLight, P.gray, { cab: 16, wheels: [5, 25] });
-topdownVehicle('assets/sprites/civil-car-c-top.png', 36, 18, P.green, P.oliveDark, { cab: 16, wheels: [5, 25] });
+topdownVehicle('assets/sprites/vehicle-mtw-top.png', 80, 40, P.thwBlue, P.thwBlueDark, { cab: 24, roofHatch: true, label: 'THW', lightbar: true, wheels: [12, 56] });
+topdownVehicle('assets/sprites/vehicle-gkw-top.png', 112, 48, P.thwBlue, P.thwBlueDark, { cab: 32, box: P.thwBlueDark, label: 'THW', lightbar: true, wheels: [16, 80] });
+topdownVehicle('assets/sprites/civil-car-a-top.png', 72, 36, P.red, P.redDark, { cab: 32, wheels: [10, 50] });
+topdownVehicle('assets/sprites/civil-car-b-top.png', 72, 36, P.concreteLight, P.gray, { cab: 32, wheels: [10, 50] });
+topdownVehicle('assets/sprites/civil-car-c-top.png', 72, 36, P.green, P.oliveDark, { cab: 32, wheels: [10, 50] });
 
 // ---------------------------------------------------------------- Seitenansicht-Fahrzeuge (Front links)
-/** Schreibt Text mit den Font-Glyphen (Faktor fs) auf die Canvas. */
-function stamp(c, x, y, text, color, fs = 1) {
-  [...text].forEach((ch, i) => {
-    const g = GLYPHS[ch];
-    if (!g) return;
-    g.forEach((row, ry) => [...row].forEach((px, rx) => { if (px === '#') c.rect(x + (i * (GLYPH_W + 1) + rx) * fs, y + ry * fs, fs, fs, color); }));
-  });
-}
 /** Rad mit Reifen, Felge, Nabe und Profil. */
 function wheel(c, cx, cy, r) {
   c.circle(cx, cy, r, P.dark);
