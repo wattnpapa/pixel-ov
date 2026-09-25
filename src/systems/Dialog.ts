@@ -13,6 +13,7 @@ export class Dialog {
   private container: Phaser.GameObjects.Container;
   private open = false;
   private onDismiss: (() => void) | null = null;
+  private onClose: (() => void) | null = null;
   private enterKey?: Phaser.Input.Keyboard.Key;
 
   constructor(private scene: Phaser.Scene) {
@@ -84,20 +85,31 @@ export class Dialog {
       const top = GAME_HEIGHT - height + 6;
       obj.setPosition(8, top);
       this.container.add(obj);
+      const pick = (i: number) => {
+        Sound.play('click');
+        this.close();
+        resolve(i);
+      };
+      // Tastatur: Ziffern 1-9 wählen die Option direkt.
+      const kb = this.scene.input.keyboard;
+      if (kb) {
+        const handler = (ev: KeyboardEvent) => {
+          const n = parseInt(ev.key, 10);
+          if (n >= 1 && n <= options.length) pick(n - 1);
+        };
+        kb.on('keydown', handler);
+        this.onClose = () => kb.off('keydown', handler);
+      }
       options.forEach((label, i) => {
         const y = top + h + 4 + i * optH;
         const row = this.scene.add
           .rectangle(4, y - 1, GAME_WIDTH - 8, optH, PALETTE.dark)
           .setOrigin(0)
           .setInteractive({ useHandCursor: true });
-        const txt = this.scene.add.bitmapText(14, y + 1, FONT, `> ${label}`).setTint(PALETTE.yellow);
+        const txt = this.scene.add.bitmapText(14, y + 1, FONT, `${i + 1}. ${label}`).setTint(PALETTE.yellow);
         row.on('pointerover', () => row.setFillStyle(PALETTE.grayDark));
         row.on('pointerout', () => row.setFillStyle(PALETTE.dark));
-        row.on('pointerdown', () => {
-          Sound.play('click');
-          this.close();
-          resolve(i);
-        });
+        row.on('pointerdown', () => pick(i));
         this.container.add([row, txt]);
       });
     });
@@ -114,6 +126,8 @@ export class Dialog {
   }
 
   close(): void {
+    this.onClose?.();
+    this.onClose = null;
     this.clear();
     this.container.setVisible(false);
     this.open = false;

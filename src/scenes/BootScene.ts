@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, PALETTE, SCENES } from '../config/game';
 import { FONT } from '../systems/Dialog';
 import { hasSave, load, reset } from '../systems/GameState';
+import { applyDebugParams } from '../systems/debug';
 
 interface FontMeta {
   image: string;
@@ -57,6 +58,7 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({ key: 'helper-walk', frames: this.anims.generateFrameNumbers('helper', { start: 0, end: 1 }), frameRate: 6, repeat: -1 });
     this.anims.create({ key: 'helper-idle', frames: [{ key: 'helper', frame: 0 }], frameRate: 1 });
 
+    if (import.meta.env.DEV && applyDebugParams(this)) return;
     this.showTitle();
   }
 

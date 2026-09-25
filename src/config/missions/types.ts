@@ -50,6 +50,8 @@ export interface SequenceMinigameDef {
   order: string[];
   wrongText: string;
   wrongPenaltyMs: number;
+  /** Beschriftung der Korrekturaktion nach einem falschen Schritt, z. B. "Keil setzen". */
+  wrongActionLabel: string;
   stepDurationMs: number;
 }
 
