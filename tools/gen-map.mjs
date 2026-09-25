@@ -98,9 +98,9 @@ fill(marks, 31, 8, 3, 3, id('marker'));
 
 const px = (t) => t * T;
 const zones = [
-  { id: 1, name: 'unterkunft', x: px(15), y: px(9), width: px(3), height: px(3), properties: [{ name: 'kind', type: 'string', value: 'depot' }] },
-  { id: 2, name: 'einsatz-storm-tree', x: px(36), y: px(27), width: px(3), height: px(3), properties: [{ name: 'kind', type: 'string', value: 'mission' }, { name: 'mission', type: 'string', value: 'storm-tree' }] },
-  { id: 3, name: 'einsatz-water-basement', x: px(31), y: px(8), width: px(3), height: px(3), properties: [{ name: 'kind', type: 'string', value: 'mission' }, { name: 'mission', type: 'string', value: 'water-basement' }] },
+  { id: 1, name: 'unterkunft', x: px(15), y: px(9), width: px(3), height: px(3), properties: [{ name: 'kind', type: 'string', value: 'depot' }, { name: 'heading', type: 'int', value: 0 }] },
+  { id: 2, name: 'einsatz-storm-tree', x: px(36), y: px(27), width: px(3), height: px(3), properties: [{ name: 'kind', type: 'string', value: 'mission' }, { name: 'mission', type: 'string', value: 'storm-tree' }, { name: 'heading', type: 'int', value: 180 }] },
+  { id: 3, name: 'einsatz-water-basement', x: px(31), y: px(8), width: px(3), height: px(3), properties: [{ name: 'kind', type: 'string', value: 'mission' }, { name: 'mission', type: 'string', value: 'water-basement' }, { name: 'heading', type: 'int', value: 270 }] },
   { id: 4, name: 'sperrung', x: px(17), y: px(21), width: px(3), height: px(2), properties: [{ name: 'kind', type: 'string', value: 'closure' }] },
 ];
 const objects = [
