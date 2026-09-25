@@ -11,9 +11,9 @@ export interface CityMap {
   routes: { name: string; sprite: string; speed: number; points: [number, number][] }[];
   areas: { kind: 'water' | 'forest' | 'field' | 'park' | 'gravel' | 'scrub'; poly: [number, number][] }[];
   waterways: { width: number; points: [number, number][] }[];
-  roads: { cls: number; width: number; name: string; points: [number, number][] }[];
-  paths: { points: [number, number][] }[];
-  railways: { points: [number, number][] }[];
+  roads: { cls: number; width: number; name: string; layer: number; bridge: boolean; points: [number, number][] }[];
+  paths: { layer: number; bridge: boolean; points: [number, number][] }[];
+  railways: { layer: number; bridge: boolean; points: [number, number][] }[];
   buildings: { roof: 'roof' | 'roof-red' | 'depot'; poly: [number, number][] }[];
   closure: { x: number; y: number; heading: number; width: number } | null;
   overview: { image: string; metersPerPixel: number };
@@ -126,7 +126,19 @@ export class MapRenderer {
   }
 
   /** Setzt alle Zellen entlang einer Linie mit Breite auf den Wert (Straßen schneiden Wald, Wasser und Gebäude frei). */
-  private strokeCells(pts: Pt[], width: number, value: number): void {
+  /** Parallel verschobene Linie (positiv = rechts in Fahrtrichtung). */
+  private offsetLine(pts: Pt[], d: number): Pt[] {
+    const out: Pt[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const [ax, ay] = pts[Math.max(0, i - 1)];
+      const [bx, by] = pts[Math.min(pts.length - 1, i + 1)];
+      const len = Math.hypot(bx - ax, by - ay) || 1;
+      out.push([pts[i][0] - ((by - ay) / len) * d, pts[i][1] + ((bx - ax) / len) * d]);
+    }
+    return out;
+  }
+
+  private strokeCells(pts: Pt[], width: number, value: number, keep?: number): void {
     const r = width / 2 / CELL;
     const r2 = r * r;
     const ri = Math.ceil(r);
@@ -142,7 +154,7 @@ export class MapRenderer {
         const r0 = Math.max(0, Math.floor(cy - ri)), r1 = Math.min(this.gridH - 1, Math.ceil(cy + ri));
         for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) {
           const dx = col + 0.5 - cx, dy = row + 0.5 - cy;
-          if (dx * dx + dy * dy <= r2) this.blocked[row * this.gridW + col] = value;
+          if (dx * dx + dy * dy <= r2 && (keep === undefined || this.blocked[row * this.gridW + col] !== keep)) this.blocked[row * this.gridW + col] = value;
         }
       }
     }
@@ -152,8 +164,12 @@ export class MapRenderer {
     for (const b of this.map.buildings) this.fillPolygonCells(b.poly);
     for (const a of this.map.areas) if (a.kind === 'water' || a.kind === 'forest') this.fillPolygonCells(a.poly);
     for (const w of this.map.waterways) this.strokeCells(w.points, w.width, 1);
-    // Straßen sind frei, auch wo Flächen oder Bäche sie überlappen (Brücken, Waldränder bis zur Fahrbahnmitte)
-    for (const r of this.map.roads) this.strokeCells(r.points, r.width + (r.cls === 1 ? 3 * this.map.pxPerMeter : 16), 0);
+    // Straßen sind frei (Wert 3), auch wo Flächen oder Bäche sie überlappen (Brücken, Waldränder bis zur Fahrbahnmitte)
+    const m = this.map.pxPerMeter;
+    for (const r of this.map.roads) this.strokeCells(r.points, r.width + (r.cls === 1 ? 3 * m : 16), 3);
+    // Gleise sperren, außer an Bahnübergängen; Brückengeländer sperren, außer wo eine Straße darunter durchführt
+    for (const rw of this.map.railways) this.strokeCells(rw.points, 3 * m, 1, 3);
+    for (const r of this.map.roads) if (r.bridge) for (const side of [-1, 1]) this.strokeCells(this.offsetLine(r.points, side * (r.width / 2 + 0.6 * m)), 0.8 * m, 1, 3);
     const c = this.map.closure;
     if (c) {
       // Sperrung: Balken quer zur Straße
@@ -261,47 +277,84 @@ export class MapRenderer {
       ctx.lineWidth = w.width;
       ctx.stroke();
     }
-    // Wege und Bahn
-    for (const i of b.paths) {
-      this.path(ctx, m.paths[i].points);
-      ctx.strokeStyle = this.pattern(ctx, 'gravel');
-      ctx.lineWidth = 1.5 * m.pxPerMeter;
-      ctx.stroke();
-    }
-    for (const i of b.railways) {
-      this.path(ctx, m.railways[i].points);
-      ctx.strokeStyle = this.pattern(ctx, 'gravel');
-      ctx.lineWidth = 3 * m.pxPerMeter;
-      ctx.stroke();
-      ctx.strokeStyle = PALETTE_HEX.grayDark;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-    // Straßen: erst Gehwege der Stadtstraßen, dann Asphalt nach Klasse, dann Mittellinien
+    // Verkehrswege nach Ebene: Tunnel und Unterführungen zuerst, dann Boden, dann Brücken
     const roads = b.roads.map((i) => m.roads[i]);
-    ctx.strokeStyle = this.pattern(ctx, 'sidewalk');
-    for (const r of roads) {
-      if (r.cls !== 1) continue;
-      this.path(ctx, r.points);
-      ctx.lineWidth = r.width + 3 * m.pxPerMeter;
-      ctx.stroke();
+    const paths = b.paths.map((i) => m.paths[i]);
+    const rails = b.railways.map((i) => m.railways[i]);
+    const layers = [...new Set([...roads, ...paths, ...rails].map((f) => f.layer))].sort((p, q) => p - q);
+    for (const layer of layers) {
+      const lr = roads.filter((r) => r.layer === layer);
+      const lp = paths.filter((p) => p.layer === layer);
+      const lrw = rails.filter((r) => r.layer === layer);
+      const mp = m.pxPerMeter;
+      if (layer > 0) {
+        // Brückenschatten und Geländer, gerade Deckenden
+        ctx.lineCap = 'butt';
+        ctx.save();
+        ctx.translate(6, 8);
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        for (const r of lr) { this.path(ctx, r.points); ctx.lineWidth = r.width + 2 * mp; ctx.stroke(); }
+        for (const r of lrw) { this.path(ctx, r.points); ctx.lineWidth = 4 * mp; ctx.stroke(); }
+        for (const p of lp) { this.path(ctx, p.points); ctx.lineWidth = 2.5 * mp; ctx.stroke(); }
+        ctx.restore();
+        ctx.strokeStyle = PALETTE_HEX.concrete;
+        for (const r of lr) { this.path(ctx, r.points); ctx.lineWidth = r.width + 2 * mp; ctx.stroke(); }
+        for (const r of lrw) { this.path(ctx, r.points); ctx.lineWidth = 4 * mp; ctx.stroke(); }
+        for (const p of lp) { this.path(ctx, p.points); ctx.lineWidth = 2.5 * mp; ctx.stroke(); }
+        ctx.strokeStyle = PALETTE_HEX.grayLight;
+        for (const r of lr) { this.path(ctx, r.points); ctx.lineWidth = r.width + 1.2 * mp; ctx.stroke(); }
+        ctx.lineCap = 'round';
+      }
+      // Bahn: Schotterbett und Schwellen
+      for (const r of lrw) {
+        this.path(ctx, r.points);
+        ctx.strokeStyle = this.pattern(ctx, 'gravel');
+        ctx.lineWidth = 3 * mp;
+        ctx.stroke();
+        ctx.strokeStyle = PALETTE_HEX.brownDark;
+        ctx.lineWidth = 2.4 * mp;
+        ctx.setLineDash([5, 11]);
+        ctx.lineCap = 'butt';
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineCap = 'round';
+      }
+      // Wege
+      for (const p of lp) {
+        this.path(ctx, p.points);
+        ctx.strokeStyle = this.pattern(ctx, 'gravel');
+        ctx.lineWidth = 1.5 * mp;
+        ctx.stroke();
+      }
+      // Straßen: Gehwege der Stadtstraßen (nicht auf Brücken), Asphalt nach Klasse, Mittellinien
+      ctx.strokeStyle = this.pattern(ctx, 'sidewalk');
+      for (const r of lr) {
+        if (r.cls !== 1 || r.bridge) continue;
+        this.path(ctx, r.points);
+        ctx.lineWidth = r.width + 3 * mp;
+        ctx.stroke();
+      }
+      ctx.strokeStyle = this.pattern(ctx, 'road');
+      for (const cls of [3, 1, 2]) for (const r of lr) {
+        if (r.cls !== cls) continue;
+        this.path(ctx, r.points);
+        ctx.lineWidth = r.width;
+        ctx.stroke();
+      }
+      ctx.strokeStyle = PALETTE_HEX.concreteLight;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([32, 32]);
+      for (const r of lr) {
+        if (r.width < 5.5 * mp) continue;
+        this.path(ctx, r.points);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      // Schienen zuletzt, damit sie an Bahnübergängen über der Straße liegen
+      ctx.strokeStyle = PALETTE_HEX.grayLight;
+      ctx.lineWidth = 3;
+      for (const r of lrw) for (const side of [-1, 1]) { this.path(ctx, this.offsetLine(r.points, side * 0.75 * mp)); ctx.stroke(); }
     }
-    ctx.strokeStyle = this.pattern(ctx, 'road');
-    for (const cls of [3, 1, 2]) for (const r of roads) {
-      if (r.cls !== cls) continue;
-      this.path(ctx, r.points);
-      ctx.lineWidth = r.width;
-      ctx.stroke();
-    }
-    ctx.strokeStyle = PALETTE_HEX.concreteLight;
-    ctx.lineWidth = 3;
-    ctx.setLineDash([32, 32]);
-    for (const r of roads) {
-      if (r.width < 5.5 * m.pxPerMeter) continue;
-      this.path(ctx, r.points);
-      ctx.stroke();
-    }
-    ctx.setLineDash([]);
     // Gebäude
     for (const i of b.buildings) {
       const bd = m.buildings[i];

@@ -321,11 +321,14 @@ const ROAD_WIDTH_M = {
   motorway: 11, trunk: 10, primary: 9, secondary: 8, tertiary: 7, unclassified: 6, residential: 6, living_street: 5,
   service: 4, motorway_link: 6, trunk_link: 6, primary_link: 6, secondary_link: 6, tertiary_link: 6,
 };
-const roads = roadWays.map((r) => ({ cls: r.cls, width: (ROAD_WIDTH_M[r.way.tags.highway] ?? 6) * PX_PER_M, name: r.name, points: toPx(simplify(r.pts)) }));
-const paths = ways.filter((w) => PATH_TYPES.has(w.tags?.highway)).map((w) => ({ points: toPx(simplify(geom(w))) }));
+/** Ebene: OSM layer, sonst 1 für Brücken, -1 für Tunnel, 0 am Boden. */
+const layerOf = (t) => { const l = parseInt(t.layer ?? '', 10); if (!Number.isNaN(l)) return l; if (t.bridge && t.bridge !== 'no') return 1; if (t.tunnel && t.tunnel !== 'no') return -1; return 0; };
+const bridgeOf = (t) => !!t.bridge && t.bridge !== 'no';
+const roads = roadWays.map((r) => ({ cls: r.cls, width: (ROAD_WIDTH_M[r.way.tags.highway] ?? 6) * PX_PER_M, name: r.name, layer: layerOf(r.way.tags), bridge: bridgeOf(r.way.tags), points: toPx(simplify(r.pts)) }));
+const paths = ways.filter((w) => PATH_TYPES.has(w.tags?.highway)).map((w) => ({ layer: layerOf(w.tags), bridge: bridgeOf(w.tags), points: toPx(simplify(geom(w))) }));
 const homeId = (() => { const bw = ways.filter((w) => w.tags?.building); const d2 = (w) => { const p = geom(w); const cx = p.reduce((a, q) => a + q.x, 0) / p.length; const cy = p.reduce((a, q) => a + q.y, 0) / p.length; return (cx - centerTile.x) ** 2 + (cy - centerTile.y) ** 2; }; return bw.sort((a, b) => d2(a) - d2(b))[0]?.id; })();
 const buildingsOut = ways.filter((w) => w.tags?.building).map((w) => ({ roof: w.id === homeId ? 'depot' : ['roof', 'roof-red', 'roof'][hash(w.id) % 3], poly: toPx(simplify(geom(w), 0.1)) })).filter((b) => b.poly.length >= 3);
-const railways = ways.filter((w) => w.tags?.railway === 'rail').map((w) => ({ points: toPx(simplify(geom(w))) }));
+const railways = ways.filter((w) => w.tags?.railway === 'rail').map((w) => ({ layer: layerOf(w.tags), bridge: bridgeOf(w.tags), points: toPx(simplify(geom(w))) }));
 
 const cityMap = {
   source: `OpenStreetMap, ${data.address}, Radius ${radiusM} m`,
