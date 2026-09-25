@@ -186,7 +186,7 @@ function sceneCanvas() {
   c.rect(24, 138, 60, 42, P.dark); c.outline(24, 138, 60, 42, P.gray);
   for (let s = 0; s < 5; s++) c.rect(28 + s * 6, 142 + s * 7, 50 - s * 6, 3, P.gray); // Treppe
   // Gully
-  c.rect(250, 158, 16, 6, P.dark); for (let i = 0; i < 16; i += 4) c.rect(250 + i, 158, 2, 6, P.gray);
+  c.rect(200, 158, 16, 6, P.dark); for (let i = 0; i < 16; i += 4) c.rect(200 + i, 158, 2, 6, P.gray);
   // Sicherungskasten neben der Tür
   c.rect(132, 104, 12, 16, P.grayLight); c.outline(132, 104, 12, 16, P.dark); c.rect(135, 108, 6, 2, P.red);
   c.save('assets/scenes/water-basement-bg.png');

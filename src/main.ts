@@ -35,3 +35,6 @@ const game = new Phaser.Game({
 });
 
 window.addEventListener('resize', () => game.scale.setZoom(integerZoom()));
+
+// Im Dev-Modus für Tests und Debugging erreichbar.
+if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
